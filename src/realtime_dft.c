@@ -34,7 +34,7 @@
 #define PA_SAMPLE_TYPE paFloat32
 typedef float SAMPLE;
 #define SAMPLE_SILENCE      0.0f
-#define SAMPLE_FORMAT       "%.8f"
+#define SAMPLE_FORMAT       paFloat32
 
 /* Constants for devices */
 #define MICROPHONE_STR      "Built_in Microph"
@@ -78,8 +78,8 @@ typedef struct
 	SAMPLE				*in_rb_data;
 
 	/* Ring buffer for samples after putting through sin fcn */
-	PaUtilRingBuffer	sin_rb;
-	SAMPLE				*sin_rb_data;
+	PaUtilRingBuffer	out_rb;
+	SAMPLE				*out_rb_data;
 } paData;
 
 /* Static variable declarations */
@@ -159,9 +159,9 @@ static int ringBufferCallback(  const void *inputBuffer,
 //	}
 
 	/* Write from 'sin' ring buffer to output Buffer */
-	if ((read_num = PaUtil_GetRingBufferReadAvailable(&data->sin_rb)) != 0) {
+	if ((read_num = PaUtil_GetRingBufferReadAvailable(&data->out_rb)) != 0) {
 		if (read_num >= framesPerBuffer) read_num = framesPerBuffer;
-		PaUtil_ReadRingBuffer(&data->sin_rb, out_ptr, read_num);
+		PaUtil_ReadRingBuffer(&data->out_rb, out_ptr, read_num);
 	}
 
 	return paContinue;
@@ -169,85 +169,9 @@ static int ringBufferCallback(  const void *inputBuffer,
 
 
 
-/** 
- * Initializes the output parameters for playback
- *
- * Function will initailize all the members of the passed
- * in PaStreamParameters struct.
- * @param out_pars a pointer to a PaStreamParameters struct. 
- */
-void setupOutputParameters( PaStreamParameters *out_pars )
-{
-    out_pars->device = Pa_GetDefaultOutputDevice();
-    if (out_pars->device == paNoDevice)
-        fatal_terminate("No default output device");
-    out_pars->channelCount = NUM_CHANNELS;
-    out_pars->sampleFormat = PA_SAMPLE_TYPE;
-    out_pars->suggestedLatency = 
-        Pa_GetDeviceInfo(out_pars->device)->defaultLowOutputLatency;
-    out_pars->hostApiSpecificStreamInfo = NULL;
-}
 
 
-/**
- * Sets up the input device with name given by the string
- * passed in as a parameter
- * @param in_pars	Poiner to aPaStreamParameters struct that will be
- * 					modified and setup properly
- * @param device	String with the desired device name 
- */
-void setupInputParametersWithDeviceName( PaStreamParameters *in_pars,
-									 const char *device )
-{
-	int i;
-	bool device_found = false;
-	for (i = 0; i < Pa_GetDeviceCount(); i++) {
-		if(strcmp(Pa_GetDeviceInfo(i)->name, device) == 0) {
-			in_pars->device = i;
-			printf("Using %s\n", device);
-			device_found = true;
-		}
-	}
 
-	/* If device isn't found, use the default device */
-	if (!device_found) {
-		printf("Requested device not found. Using default\n");
-		in_pars->device = Pa_GetDefaultInputDevice();
-	}
-    if (in_pars->device == paNoDevice) 
-        fatal_terminate("No default input device");
-    in_pars->channelCount = NUM_CHANNELS;
-    in_pars->sampleFormat = PA_SAMPLE_TYPE;
-    in_pars->suggestedLatency = 
-       Pa_GetDeviceInfo(in_pars->device)->defaultLowInputLatency;
-    in_pars->hostApiSpecificStreamInfo = NULL;
-}
-
-
-void setupInputParametersWithDeviceNumber( PaStreamParameters *in_pars,
-											int device_num )
-{
-	/* Ensure device number is valid */
-	bool device_found = false;
-	if (0 <= device_num && device_num < Pa_GetDeviceCount()) {
-		device_found = true;
-		in_pars->device = device_num;
-	}
-
-	/* If device isn't found, use the default device */
-	if (!device_found) {
-		printf("Requested device (%d) not found. Using default\n",
-														device_num );
-		in_pars->device = Pa_GetDefaultInputDevice();
-	}
-    if (in_pars->device == paNoDevice) 
-        fatal_terminate("No default input device");
-    in_pars->channelCount = NUM_CHANNELS;
-    in_pars->sampleFormat = PA_SAMPLE_TYPE;
-    in_pars->suggestedLatency = 
-       Pa_GetDeviceInfo(in_pars->device)->defaultLowInputLatency;
-    in_pars->hostApiSpecificStreamInfo = NULL;
-}
 
 void high_pass_filter( DSPSplitComplex *dft, float frac, int len)
 {
@@ -480,8 +404,8 @@ int main()
 	if (DEBUG) printf("Allocating memory for ring buffers... ");
 	if ((data.in_rb_data = (float *)malloc(num_bytes)) == NULL)
 		fatal("PaUtil_AllocateMemory: in_rb");
-	if ((data.sin_rb_data = (float *)malloc(num_bytes)) == NULL)
-		fatal("PaUtil_AllocateMemory: sin_rb");
+	if ((data.out_rb_data = (float *)malloc(num_bytes)) == NULL)
+		fatal("PaUtil_AllocateMemory: out_rb");
 	if (DEBUG) printf("Succeeded\n");
 
 	/* Allocate space for temporary calculation buffers */
@@ -496,12 +420,12 @@ int main()
 			sizeof(float) * NUM_CHANNELS, num_frames, data.in_rb_data);
 	if (err != paNoError)
 		pa_fatal("Initializing ring in ring buffer", err);
-	err = PaUtil_InitializeRingBuffer(&data.sin_rb, 
-			sizeof(float) * NUM_CHANNELS, num_frames, data.sin_rb_data);
+	err = PaUtil_InitializeRingBuffer(&data.out_rb, 
+			sizeof(float) * NUM_CHANNELS, num_frames, data.out_rb_data);
 	if (err != paNoError)
 		pa_fatal("Initializing ring in ring buffer", err);
 	PaUtil_FlushRingBuffer(&data.in_rb);
-	PaUtil_FlushRingBuffer(&data.sin_rb);
+	PaUtil_FlushRingBuffer(&data.out_rb);
 	if (DEBUG) printf("Succeeded\n");
     
 	/* Setup input and output parameters */
@@ -510,11 +434,12 @@ int main()
 	printf("Enter the number of the desired device from the following:\n");
 	printAvailableDevices();
 	scanf("%d", &device_num);
-	setupInputParametersWithDeviceNumber(&inputParameters, device_num);
+	setupInputParametersWithDeviceNumber(&inputParameters, 
+											device_num, SAMPLE_FORMAT);
 	if (DEBUG) printf("Succeeded using device: %s\n",
 						Pa_GetDeviceInfo(inputParameters.device)->name);
 	if (DEBUG) printf("Setting up output parameters... ");
-    setupOutputParameters(&outputParameters);
+    setupDefaultOutputParameters(&outputParameters, SAMPLE_FORMAT);
 	if (DEBUG) printf("Succeeded using device: %s\n",
 						Pa_GetDeviceInfo(outputParameters.device)->name);
 
@@ -591,7 +516,7 @@ int main()
 			/* Perform the istft */
 			performISTFT(&stft, calc_buffer);
 			/* Write to output ring buffer */
-			writeOutputRingBuffer(&data.sin_rb, calc_buffer, WINDOW_SIZE);
+			writeOutputRingBuffer(&data.out_rb, calc_buffer, WINDOW_SIZE);
 
 		} // end read_num = ... if
 
@@ -603,7 +528,7 @@ int main()
 	/* Try to output all zeros to avoid loud sounds all closing */
 	if (Pa_IsStreamActive(in_stream) == 1) {
 		memset(calc_buffer, 0, WINDOW_SIZE);
-		writeOutputRingBuffer(&data.sin_rb, calc_buffer, WINDOW_SIZE);
+		writeOutputRingBuffer(&data.out_rb, calc_buffer, WINDOW_SIZE);
 		Pa_StopStream(in_stream);
 	}
 		
@@ -616,8 +541,8 @@ int main()
 	if (DEBUG) printf("Freeing ring buffer memory... ");
 	if (data.in_rb_data)
 		free(data.in_rb_data);
-	if (data.sin_rb_data)
-		free(data.sin_rb_data);
+	if (data.out_rb_data)
+		free(data.out_rb_data);
 	if (DEBUG) printf("Succeeded.\n");
 
 	/* Free memory associated with STFT object */

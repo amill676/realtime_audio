@@ -28,8 +28,8 @@ LINKER := gcc
 L_FLAGS := -L/opt/local/lib -B$(LIB_DIR) -lportaudio -L./portaudio/src/common/ 
 
 # List of different targets
-TARGETS := sin record exrecord realtime realtime_sin realtime_dft \
-			realtime_stft plot
+TARGETS := sin record exrecord realtime realtime_buf realtime_dft \
+			plot
 
 # Setup required objs for different targets
 SIN_OBJS :=  sin.o audio_tools.o # for target: sin
@@ -73,6 +73,6 @@ plot: $(PLOT_OBJS)
 clean:
 	rm -f $(TARGETS)
 	rm -f $(addprefix $(BIN_DIR), $(TARGETS))
-	rm -f $(LIB_DIR)*.o
+	rm -f $(LIB_DIR)/*.o
 	rm -f *.o
 	rm -f output?.dat
