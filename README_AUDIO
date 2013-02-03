@@ -1,0 +1,77 @@
+############################################################
+#
+#                    Audio Code ReadMe
+#
+#                       Adam Miller
+#                         9/14/12
+#
+#############################################################
+
+
+1. Intro
+========
+        This directory contains code pertaining to realtime 
+    audio projects as well as the utilities necessary to 
+    properly build and run that code.
+        This directory contains several subdirectories that
+    each hold specific necessary files.
+    These directories are as follows:
+
+    src:        Contains .c/.cpp source code
+    include:    Contains .h header files
+	lib:		Contains the built .o object files
+
+
+2. Building
+===========
+        The different make targets can be used to construct the
+    different code available (contained in the src directory).
+    To build a specific set of code, simply enter:
+
+    make <<target_name>>
+
+    where target_name is the name of the target associated with
+    the code you want to build. The different targets are listed
+    below.
+
+3. Programs
+===========
+	
+	The following programs can be built using the listed name
+	as the target name when building as instructed above. Here
+	are the available programs and their functions:
+
+
+
+    sin:        Will play 3 different sin tones for 5 seconds each.
+
+	exrecord:	Will record a sample of audio and then play
+				back the sample.
+
+	record:		Will record a sample of audio, modulate it with
+				a sin wave, and then playback the obtained audio.
+	
+	realtime:	Similar to record, except will play back the processed
+				audio in realtime
+
+	plot:		Gives an example use of plotting concurrently using
+				gnuplot. Will plot a sinwave with gradually increasing
+				frequency.
+
+	realtime_sin: 	Uses a ringbuffer to store the audio before 
+					processing, and then another ringbuffer to queue
+					up output samples. This allows more complex 
+					processing, so this program will run each sample
+					through a sin function instead of simply modulating
+					it.
+
+	realtime_dft:	Records data, performs a DFT on it, plots the DFT
+					and plays back the audio in realtime. Note that
+					frequency processing can occur in realtime since
+					the DFT can be manipulated.
+
+
+	
+
+	
+
