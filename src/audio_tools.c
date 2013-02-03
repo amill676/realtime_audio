@@ -56,6 +56,7 @@ void pa_fatal(char s[], PaError err)
  * Function will initailize all the members of the passed
  * in PaStreamParameters struct.
  * @param out_pars a pointer to a PaStreamParameters struct. 
+ * @param format the sample format for the output device to use
  */
 void setupDefaultOutputParameters( PaStreamParameters *out_pars,
 									PaSampleFormat format)
@@ -78,6 +79,7 @@ void setupDefaultOutputParameters( PaStreamParameters *out_pars,
  * @param in_pars	Poiner to a PaStreamParameters struct that will be
  * 					modified and setup properly
  * @param device	String with the desired device name 
+ * @param format the sample format for the input device to use
  */
 void setupInputParametersWithDeviceName( PaStreamParameters *in_pars, 
 										const char *device, 
@@ -115,6 +117,7 @@ void setupInputParametersWithDeviceName( PaStreamParameters *in_pars,
  * specified by the given device number
  * @param in_pars input parameters object to modify and setup
  * @param device_num the device number of the device to use
+ * @param format the sample format for the input device to use
  */
 void setupInputParametersWithDeviceNumber( PaStreamParameters *in_pars,
 											int device_num, 
