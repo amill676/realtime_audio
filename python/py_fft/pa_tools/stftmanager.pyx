@@ -147,7 +147,8 @@ cdef class StftManager:
     cpdef getDFTs(self):
         """
         Get the dfts associated with the current state of
-        this stft object in  a list
+        Returns a tuple of a list of real components of dfts, and a list of imag
+         components of the dfts
         """
         cdef cstft.DSPSplitComplex *dft = self._c_stft.dfts
         cdef int n_dfts = self._c_stft.num_dfts
