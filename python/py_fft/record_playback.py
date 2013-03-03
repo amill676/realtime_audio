@@ -1,7 +1,5 @@
 __author__ = 'adamjmiller'
-from pa_tools.audiobuffer import AudioBuffer
 from pa_tools.audiohelper import AudioHelper
-from pa_tools.stftmanager import StftManager
 import pyaudio
 import time
 import math

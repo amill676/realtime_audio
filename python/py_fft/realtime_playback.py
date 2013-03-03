@@ -13,10 +13,10 @@ SAMPLE_TYPE = pyaudio.paFloat32
 DATA_TYPE = np.float32
 SAMPLE_SIZE = pyaudio.get_sample_size(SAMPLE_TYPE)
 SAMPLE_RATE = 44100
-FFT_LENGTH = 512
+FRAMES_PER_BUF = 64  # Do not go below 64, or above 2048
+FFT_LENGTH = FRAMES_PER_BUF
 WINDOW_LENGTH = FFT_LENGTH
-FRAMES_PER_BUF= 512
-HOP_LENGTH = 256
+HOP_LENGTH = WINDOW_LENGTH / 2
 NUM_CHANNELS = 1
 
 # Track whether we have quit or not
@@ -52,13 +52,12 @@ def process_dfts(reals, imags):
     for imag in imags:
         process_dft_buf(imag)
 
-
 def process_dft_buf(buf):
-    pass
     # Low pass filter:
-    #for i in range(len(buf)):
-    #    if i > FFT_LENGTH / 8:
-    #        buf[i] = 0
+    for i in range(len(buf)):
+        if i > FFT_LENGTH / 16:
+            buf[i] = 0
+    pass
 
 
 def check_for_quit():
@@ -76,7 +75,10 @@ if __name__ == '__main__':
     helper = AudioHelper(pa)
 
     # Setup STFT object
-    stft = StftManager(dft_length=FFT_LENGTH, window_length=WINDOW_LENGTH, hop_length=HOP_LENGTH, dtype=DATA_TYPE)
+    stft = StftManager(dft_length=FFT_LENGTH,
+                       window_length=WINDOW_LENGTH,
+                       hop_length=HOP_LENGTH,
+                       dtype=DATA_TYPE)
 
     # Get devices
     in_device = helper.get_input_device_from_user()
@@ -102,7 +104,7 @@ if __name__ == '__main__':
     in_stream.start_stream()
     out_stream.start_stream()
 
-    # Start plotting thread
+    # Start thread to check for user quit
     quit_thread = threading.Thread(target=check_for_quit)
     quit_thread.start()
 
@@ -111,13 +113,17 @@ if __name__ == '__main__':
         while in_stream.is_active() or out_stream.is_active():
             available = min(in_buf.get_available_read(), out_buf.get_available_write())
             if available >= WINDOW_LENGTH:  # If enough space to transfer data
+                # Get data from the circular buffer
                 data = in_buf.read_samples(WINDOW_LENGTH)
-                # Do STFT and ISTFT
+                # Perform an stft
                 stft.performStft(data)
+                # Process dfts from windowed segments of input
                 reals, imags = stft.getDFTs()
                 process_dfts(reals, imags)
-                stft.performIStft(data1)
-                out_buf.write_samples(data1)
+                # Get the istft of the processed data
+                new_data = stft.performIStft()
+                # Write out the new, altered data
+                out_buf.write_samples(new_data)
             time.sleep(.001)
     except KeyboardInterrupt:
         print "Program interrupted"

@@ -16,20 +16,21 @@ data = np.array([1, 0, 2, 0, 1, 1, 1, 0], dtype=np.float32)
 stft.performStft(data)
 
 reals, imags = stft.getDFTs()
+
+real_part = reals[0]
+imag_part = imags[0]
+
 real_str = ""
 imag_str = ""
-for arr in reals:
-    print arr
-for arr in imags:
-    print arr
-
+for i in real_part:
+    real_str += "  " + str(i)
+for i in imag_part:
+    imag_str += "  " + str(i)
 print "reals: " + real_str
 print "imags: " + imag_str
-print
-
 
 data1 = np.zeros(8, dtype=np.float32)
 stft.performIStft(data1)
-print data1
+print "istft: " + str(data1)
 
 
