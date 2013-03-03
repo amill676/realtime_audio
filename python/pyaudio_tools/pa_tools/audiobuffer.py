@@ -12,8 +12,8 @@ class AudioBuffer:
     NOTE: This class will not work for custom sample formats or
     paInt24 samples formats
 
-    :param length: length of the buffer in samples
-    :param d_type: sample format type. Should be in pyaudio form (paFloat32 e.g.)
+    @param length: length of the buffer in samples
+    @param d_type: sample format type. Should be in pyaudio form (paFloat32 e.g.)
     """
     _format = {
         pyaudio.paFloat32: 'f',
@@ -36,7 +36,7 @@ class AudioBuffer:
     def write_samples(self, data):
         """
         Write data to the buffer
-        :param data: a list of data frames in the format specified when
+        @param data: a list of data frames in the format specified when
                      creating the AudioBuffer. Data for different channels
                      should be interlaced
         """
@@ -98,22 +98,22 @@ class AudioBuffer:
         If there are less than n_bytes available, it will return all
         data in the buffer
 
-        :param n_samples: number of frames of data to retrieve
-        :returns: 'n_bytes' bytes from the buffer in the form of a string
+        @param n_samples: number of frames of data to retrieve
+        @return: 'n_bytes' bytes from the buffer in the form of a string
         """
         data = self.read_samples(n_samples)
         return struct.pack("%d%s" % (len(data), self._sample_format), *data)
 
     def get_available_write(self):
         """
-        :returns: the amount of available space in the buffer in number
+        @return: the amount of available space in the buffer in number
          of samples
         """
         return (self._length - self._size) / self._n_channels
 
     def get_available_read(self):
         """
-        :returns: the amount of data in the buffer that can be read in
+        @return: the amount of data in the buffer that can be read in
         number of samples
         """
         return self._size / self._n_channels

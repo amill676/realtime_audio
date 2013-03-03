@@ -41,7 +41,7 @@ int	createRealtimeSTFT(	realtimeSTFT *obj,
 
 	/* Setup members of struct */
 	if (dft_logn < 0) return STFT_INVALID_DFTLEN;
-	if (dft_logn > window_logn) return STFT_INVALID_DFTLEN;
+	if (dft_logn != window_logn) return STFT_INVALID_DFTLEN;
 	if (window_logn < 0) return STFT_INVALID_WINDOWSIZE;
 	if (num_channels <= 0) return STFT_INVALID_NUM_CHANNELS;
 	if (obj == NULL) return STFT_NULL_PARAMETER;

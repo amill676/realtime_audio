@@ -4,7 +4,7 @@ from Cython.Distutils import build_ext
 import numpy as np
 
 # Setup necessary paths for compiling realtimestft library
-audio_dir_base = "../../../" # we have audio/python/py_fft/pa_tools
+audio_dir_base = "../../../" # we have audio/python/pyaudio_tools/pa_tools
 CFLAGS = [
     "-I/opt/local/include",
     "-I/usr/include/Python2.7",
