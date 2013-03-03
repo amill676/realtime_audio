@@ -28,7 +28,7 @@
 #define NUM_SECONDS         2
 #define FRAMES_PER_RING_BUFFER 512
 #define NUM_CHANNELS        2
-#define NUM_PLOTS			2
+#define NUM_PLOTS			1
 
 /* Setup the sample format. */
 #define PA_SAMPLE_TYPE paFloat32
@@ -43,7 +43,7 @@ typedef float SAMPLE;
 #define AIRPLAY_STR			"AirPlay"
 
 /* Constants for DFT options */
-#define DFT_LOG_LEN		9 // For length 2^n
+#define DFT_LOG_LEN		10 // For length 2^n
 #define DFT_LEN			(1 << DFT_LOG_LEN)
 #define DFT_RADIX	kFFTRadix2
 #define WINDOW_LOG_LEN  9
@@ -57,7 +57,7 @@ typedef float SAMPLE;
 #define DAT_FILE_NAME_PREFIX	"output"
 
 /* debug flag */
-#define DEBUG	0 
+#define DEBUG	1 
 
 #define ABS(a) ( a < 0 ? (-1 * a) : a )
 #define FREQUENCY .5 // Frequency of sin to modulate with
@@ -476,7 +476,7 @@ int main()
 	/* Setup stft object */
 	realtimeSTFT stft;
 	err = createRealtimeSTFT(&stft, DFT_LOG_LEN, 
-							WINDOW_LOG_LEN, HOP_LOG_N, NUM_CHANNELS);
+							WINDOW_LOG_LEN, HOP_LOG_N, NUM_CHANNELS, sizeof(SAMPLE));
 	if (err != STFT_OK) fatal_terminate("Creating STFT obj");
 
 	/* Setup variables for main loop */

@@ -29,7 +29,7 @@ L_FLAGS := -L/opt/local/lib -B$(LIB_DIR) -lportaudio -L./portaudio/src/common/
 
 # List of different targets
 TARGETS := sin record exrecord realtime realtime_buf realtime_dft \
-			plot
+			plot stft_test
 
 # Setup required objs for different targets
 SIN_OBJS :=  sin.o audio_tools.o # for target: sin
@@ -39,6 +39,7 @@ REALTIME_BUF_OBJS := realtime_buf.o audio_tools.o pa_ringbuffer.o
 REALTIME_DFT_OBJS := realtime_dft.o audio_tools.o pa_ringbuffer.o \
 					 realtimestft.o
 PLOT_OBJS := plot.o
+STFT_TEST_OBJS := realtimestft.o stft_test.o
 
 # Specify targets/recipes
 .PHONY: all
@@ -65,6 +66,10 @@ realtime_dft: $(REALTIME_DFT_OBJS)
 
 plot: $(PLOT_OBJS)
 	$(LINKER) $(L_FLAGS) -lplplotd $(addprefix $(LIB_DIR), $(notdir $^)) -o $@
+
+stft_test: $(STFT_TEST_OBJS)
+	$(LINKER) $(L_FLAGS) -L $(DSP_LIB_DIR) \
+	-lvDSP $(addprefix $(LIB_DIR), $(notdir $^)) -o $@
 
 %.o: %.c
 	$(CC) $(C_FLAGS) $^ -o $(addprefix $(LIB_DIR), $@)
