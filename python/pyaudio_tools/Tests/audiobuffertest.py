@@ -70,11 +70,11 @@ class AudioBufferTest(unittest.TestCase):
         self.buff32.write_samples(data)
         self.assertEquals(self.buff32.get_available_read(), 12)
         data_read = self.buff32.read_samples(12)
-        self.assertEquals(data, data_read)
+        self.assertListFloatEqual(data, data_read)
         self.buff32.write_samples(data4)
         self.assertEquals(self.buff32.get_available_read(), 4)
         data_read = self.buff32.read_samples(4)
-        self.assertEquals(data4, data_read)
+        self.assertListFloatEqual(data4, data_read)
 
     def testWriteArray(self):
         data = numpy.random.rand(12 * self.n_channels)
@@ -90,13 +90,11 @@ class AudioBufferTest(unittest.TestCase):
         self.buff32.write_samples(data)
         self.assertEquals(self.buff32.get_available_read(), 12)
         data_read = self.buff32.read_samples(12)
-        for i in range(len(data)):
-            self.assertEquals(data[i], data_read[i])
+        self.assertListFloatEqual(data, data_read)
         self.buff32.write_samples(data4)
         self.assertEquals(self.buff32.get_available_read(), 4)
         data_read = self.buff32.read_samples(4)
-        for i in range(len(data_read)):
-            self.assertEquals(data4[i], data_read[i])
+        self.assertListFloatEqual(data_read, data4)
 
     def testRead(self):
         self.buff32.write_bytes(self.data_of_length(12))
@@ -142,6 +140,12 @@ class AudioBufferTest(unittest.TestCase):
         data_read = self.buff32.read_bytes(12)
         self.assertEquals(self.buff32.get_available_read(), 4)
         self.assertEquals(data_read, self.data_of_length(12))
+
+    def assertListFloatEqual(self, list1, list2):
+        if not len(list1) == len(list2):
+            raise AssertionError("Lists differ in lenght. Cannot be equal")
+        for i in range(len(list1)):
+            self.assertLessEqual(abs(list1[i] - list2[i]), 1e-4)
 
 
     def tearDown(self):

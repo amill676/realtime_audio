@@ -1,4 +1,4 @@
-__author__ = 'adamjmiller'
+__author__ = 'Adam Miller'
 import pyaudio
 import time
 import numpy as np
@@ -13,11 +13,11 @@ SAMPLE_TYPE = pyaudio.paFloat32
 DATA_TYPE = np.float32
 SAMPLE_SIZE = pyaudio.get_sample_size(SAMPLE_TYPE)
 SAMPLE_RATE = 44100
-FRAMES_PER_BUF = 256  # Do not go below 64, or above 2048
+FRAMES_PER_BUF = 64  # Do not go below 64, or above 2048
 FFT_LENGTH = FRAMES_PER_BUF
 WINDOW_LENGTH = FFT_LENGTH
 HOP_LENGTH = WINDOW_LENGTH / 2
-NUM_CHANNELS = 2
+NUM_CHANNELS = 1
 
 # Track whether we have quit or not
 done = False
@@ -46,13 +46,11 @@ def write_out_data(in_data, frame_count, time_info, status_flags):
         return '\x00' * frame_count * SAMPLE_SIZE * NUM_CHANNELS, pyaudio.paContinue
 
 
-def process_dfts(dfts):
-    for (reals, imags) in dfts:
-        for real in reals:
-            process_dft_buf(real)
-        for imag in imags:
-            process_dft_buf(imag)
-
+def process_dfts(reals, imags):
+    for real in reals:
+        process_dft_buf(real)
+    for imag in imags:
+        process_dft_buf(imag)
 
 def process_dft_buf(buf):
     # Low pass filter:
@@ -80,8 +78,6 @@ if __name__ == '__main__':
     stft = StftManager(dft_length=FFT_LENGTH,
                        window_length=WINDOW_LENGTH,
                        hop_length=HOP_LENGTH,
-                       use_window_fcn=True,
-                       n_channels=NUM_CHANNELS,
                        dtype=DATA_TYPE)
 
     # Get devices
@@ -112,7 +108,6 @@ if __name__ == '__main__':
     quit_thread = threading.Thread(target=check_for_quit)
     quit_thread.start()
 
-    data1 = np.zeros(WINDOW_LENGTH, dtype=DATA_TYPE)
     try:
         while in_stream.is_active() or out_stream.is_active():
             available = min(in_buf.get_available_read(), out_buf.get_available_write())
@@ -122,8 +117,8 @@ if __name__ == '__main__':
                 # Perform an stft
                 stft.performStft(data)
                 # Process dfts from windowed segments of input
-                dfts = stft.getDFTs()
-                process_dfts(dfts)
+                reals, imags = stft.getDFTs()
+                process_dfts(reals, imags)
                 # Get the istft of the processed data
                 new_data = stft.performIStft()
                 # Write out the new, altered data
@@ -132,7 +127,6 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print "Program interrupted"
         done = True
-
 
     print "Cleaning up"
     in_stream.stop_stream()

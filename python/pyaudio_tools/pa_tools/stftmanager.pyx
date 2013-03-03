@@ -186,7 +186,7 @@ cdef class StftManager:
         @return: numpy array containing segment of istft
         """
         cdef cnp.ndarray[dtype=cnp.float32_t] out_buf = \
-            np.empty(self._window_length, dtype=np.float32)
+            np.empty(self._window_length * self._n_channels, dtype=np.float32)
         cstft.performISTFT(&self._c_stft, <cnp.float32_t *> out_buf.data)
         return out_buf
 
@@ -203,11 +203,12 @@ cdef class StftManager:
         windows of the input data are available. For a hop size a quarter the
         length of the window, there will be four available.
 
-        These DFT's are returned as tuple of lists. The first list in the tuple
-        contains an array of real parts of the DFT's. The second list in the tuple contains
-        an array of imaginary parts of the DFT. Each array in these lists will be
-        half the dft length, as the input is always real, so negative frequencies
-        are discarded.
+        These DFT's are returned as a list of tuples of lists. Each tuple corresponds
+        to data associated with a certain channel, starting from the first channel.
+        The first list in the tuple contains an array of real parts of the DFT's.
+        The second list in the tuple contains an array of imaginary parts of the DFT.
+        Each array in these lists will be half the dft length, as the input is always
+        real, so negative frequencies are discarded.
 
         This means that the arrays in the first list and the arrays of
         the second list can be combined to make up the dft of the first windowed
@@ -232,6 +233,7 @@ cdef class StftManager:
         """
         cdef cstft.DSPSplitComplex *dft = self._c_stft.dfts
         cdef int n_dfts = self._c_stft.num_dfts
+        dfts = []
         # Lists that will hold pointers to the dft's real and imag components
         all_reals = []
         all_imags = []
@@ -239,12 +241,14 @@ cdef class StftManager:
         cdef cnp.float32_t[::1] reals
         cdef cnp.float32_t[::1] imags
         # Loop through and populate list
-        for i in range(n_dfts):
-            reals = <cnp.float32_t[:(self._dft_length/2)]> dft[i].realp
-            imags = <cnp.float32_t[:(self._dft_length/2)]> dft[i].imagp
-            all_reals.append(reals)
-            all_imags.append(imags)
-        return all_reals, all_imags
+        for n in range(self._n_channels):
+            for i in range(n_dfts):
+                reals = <cnp.float32_t[:(self._dft_length/2)]> dft[n * n_dfts + i].realp
+                imags = <cnp.float32_t[:(self._dft_length/2)]> dft[n * n_dfts + i].imagp
+                all_reals.append(reals)
+                all_imags.append(imags)
+            dfts.append((all_reals, all_imags))
+        return dfts
 
 
 

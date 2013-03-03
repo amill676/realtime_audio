@@ -15,7 +15,8 @@ stft = StftManager(dft_length=dft_len, window_length=window_len,
 data = np.array([1, 0, 2, 0, 1, 1, 1, 0], dtype=np.float32)
 stft.performStft(data)
 
-reals, imags = stft.getDFTs()
+dfts = stft.getDFTs() # List of dfts for each channel
+reals, imags = dfts[0]
 
 real_part = reals[0]
 imag_part = imags[0]

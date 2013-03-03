@@ -36,7 +36,7 @@ class AudioBuffer:
     def write_samples(self, data):
         """
         Write data to the buffer
-        @param data: a list of data frames in the format specified when
+        @param data: a numpy array of data frames in the format specified when
                      creating the AudioBuffer. Data for different channels
                      should be interlaced
         """
@@ -47,10 +47,10 @@ class AudioBuffer:
             # Deal with wraparound in buffer
         if len(data) + self._write_start > self._length:
             num_to_end = self._length - self._write_start
-            self._buffer[self._write_start:self._length] = list(data[:num_to_end])
-            self._buffer[:(self._write_start + len(data)) % len(data)] = list(data[num_to_end:])
+            self._buffer[self._write_start:self._length] = data[:num_to_end]
+            self._buffer[:(self._write_start + len(data)) % self._length] = data[num_to_end:]
         else:  # No wraparound
-            self._buffer[self._write_start:self._write_start + len(data)] = list(data)
+            self._buffer[self._write_start:self._write_start + len(data)] = data
             # Update state variables
         self._write_start = (self._write_start + len(data)) % self._length
         self._size += len(data)
@@ -79,7 +79,7 @@ class AudioBuffer:
 
     def write_bytes(self, data):
         """
-        Pushes the input data to the end of the puffer
+        Pushes the input data to the end of the buffer
         """
         # Ensure input is of proper type and size
         if not type(data) == str:
@@ -87,9 +87,8 @@ class AudioBuffer:
         if len(data) / self._sample_size > self._length - self._size:
             raise ValueError("Input size larger than available space in buffer")
             # Get list representation
-        n_frames = len(data) / self._n_channels
-        data_list = list(struct.unpack(
-            "%d%s" % (len(data) / self._sample_size, self._sample_format), data))
+        data_list = np.array((struct.unpack(
+            "%d%s" % (len(data) / self._sample_size, self._sample_format), data)), dtype=np.float32)
         self.write_samples(data_list)
 
     def read_bytes(self, n_samples):

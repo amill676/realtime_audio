@@ -1,6 +1,5 @@
-__author__ = 'adamjmiller'
+__author__ = 'Adam Miller'
 import pyaudio
-
 
 class AudioHelper(object):
     """
@@ -9,7 +8,7 @@ class AudioHelper(object):
     in conjunction with pyaudio
     """
 
-    def __init__(self, pa):
+    def __init__(self, pa, n_channels=1):
         """
         @type pa pyaudio.PyAudio
         @param pa pyaudio.PyAudio object for use in determining devices
@@ -17,13 +16,14 @@ class AudioHelper(object):
         if not isinstance(pa, pyaudio.PyAudio):
             raise ValueError("pa must be a pyaudio.PyAudio object")
         self._pa = pa
+        self._n_channels = n_channels
 
     def get_device_names(self):
         """
         Returns a list with the names of the available devices. The
         devices position in the list indicates the device's index
 
-        @returns list withe available device names
+        @return: list withe available device names
         """
         return [self._pa.get_device_info_by_index(i)['name']
                 for i in range(self._pa.get_device_count())]
@@ -33,8 +33,8 @@ class AudioHelper(object):
         Returns dictionary with device info for the device with
         the given name. Is case insensitive to 'name' input
 
-        @param name name of the desired
-        @returns dictionary with device info for the device with the
+        @param name: name of the desired
+        @return: dictionary with device info for the device with the
                 given name if such a device exists. None otherwise
         """
         self._pa.get_device_info_by_index(2)
@@ -91,3 +91,5 @@ class AudioHelper(object):
         Wrapper for pyaudio.PyAudio method with same name
         """
         return self._pa.get_device_info_by_index(index)
+
+

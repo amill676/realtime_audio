@@ -38,7 +38,7 @@ class StftManagerTest(unittest.TestCase):
         data = np.array(np.ones(self.window_len), dtype=np.float32)
         self.stft_dft.performStft(data)
         data1 = np.array(np.zeros(self.window_len), dtype=np.float32)
-        self.stft_dft.performIStft(data1)
+        data1 = self.stft_dft.performIStft()
         #self.stft.performIStft(data1)
         for i in range(len(data)):
             print i
@@ -87,6 +87,7 @@ class StftManagerTest(unittest.TestCase):
         self.assertEquals(caught, True)
 
     def testGetDFT(self):
-        reals, imags = self.stft_dft.getDFTs()
+        dfts = self.stft_dft.getDFTs()
+        (reals, imags) = dfts[0]
         print reals
         print imags

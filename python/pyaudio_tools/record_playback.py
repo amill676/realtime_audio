@@ -51,7 +51,7 @@ out_device = helper.get_default_output_device_info()
 
 # Setup stream
 in_stream = pa.open(rate=sample_rate,
-                    channels = 1,
+                    channels=1,
                     format=pyaudio.paFloat32,
                     input=True,
                     input_device_index=int(in_device['index']),
