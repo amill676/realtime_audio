@@ -15,21 +15,21 @@ SAMPLE_TYPE = pyaudio.paFloat32
 DATA_TYPE = np.float32
 SAMPLE_SIZE = pyaudio.get_sample_size(SAMPLE_TYPE)
 SAMPLE_RATE = 16000
-FRAMES_PER_BUF = 1024  # Do not go below 64, or above 2048
+FRAMES_PER_BUF = 4096  # Do not go below 64, or above 2048
 FFT_LENGTH = FRAMES_PER_BUF
 WINDOW_LENGTH = FFT_LENGTH
 HOP_LENGTH = WINDOW_LENGTH / 2
-NUM_CHANNELS_IN = 1
-NUM_CHANNELS_OUT = 1
-DO_PLOT = True
+NUM_CHANNELS_IN = 7
+NUM_CHANNELS_OUT = 2
+DO_PLOT = False
 PLOT_FREQ = 1  # For PLOT_FREQ = n, will plot every n loops
 
 # Track whether we have quit or not
 done = False
 
 # Setup data buffers
-in_buf = AudioBuffer(n_channels=NUM_CHANNELS_IN)
-out_buf = AudioBuffer(n_channels=NUM_CHANNELS_IN)
+in_buf = AudioBuffer(length=4 * FRAMES_PER_BUF, n_channels=NUM_CHANNELS_IN)
+out_buf = AudioBuffer(length=4 * FRAMES_PER_BUF, n_channels=NUM_CHANNELS_IN)
 
 
 def read_in_data(in_data, frame_count, time_info, status_flags):
@@ -119,10 +119,23 @@ if __name__ == '__main__':
 
     # Setup plotting
     if DO_PLOT:
+        plt.ion()
         fig = plt.figure()
-        ax = fig.add_subplot(111)
+        # Setup time plot and bounds. Each loop only update data
+        time_ax = fig.add_subplot(211)
+        time_plot, = time_ax.plot(np.arange(WINDOW_LENGTH), np.zeros(WINDOW_LENGTH))
+        time_ax.set_ylim(-.5, .5)
+        time_ax.set_xlim(0, WINDOW_LENGTH)
+        time_ax.set_ylabel('Amplitude')
+        time_ax.set_xlabel('Sample')
+        # Setup frequency plot and bounds. Each loop only update data
+        freq_ax = fig.add_subplot(212)
+        freq_plot, = freq_ax.plot(np.linspace(0, SAMPLE_RATE / 2., FFT_LENGTH / 2 + 1), np.zeros(FFT_LENGTH / 2 + 1))
+        freq_ax.set_ylim(0, 50)
+        freq_ax.set_ylabel('Magnitude')
+        freq_ax.set_xlabel('Frequency (Hz)')
+        # Show figure
         plt.show(block=False)
-        plot_count = 0
 
     data1 = np.zeros(WINDOW_LENGTH, dtype=DATA_TYPE)
     try:
@@ -135,23 +148,30 @@ if __name__ == '__main__':
                 stft.performStft(data)
                 # Process dfts from windowed segments of input
                 dfts = stft.getDFTs()
-                process_dfts(dfts)
+                #process_dfts(dfts)
                 if DO_PLOT:
-                    if plot_count == PLOT_FREQ:
-                        fft = to_full_fft(dfts[0][0][0], dfts[0][1][0])
-                        ax.cla()
-                        ax.plot(np.abs(fft))
-                        ax.set_ylim(0, 50)
-                        plt.draw()
-                        plot_count = 0
-                    plot_count += 1
+                    # Must update here because dfts are altered upon calling ISTFT since
+                    # the dft is performed in place
+                    fft = to_full_fft(dfts[0][0][0], dfts[0][1][0])
                 # Get the istft of the processed data
                 new_data = stft.performIStft()
-                # Write out the new, altered data
+                # Alter data so it can be written out
                 if NUM_CHANNELS_IN != NUM_CHANNELS_OUT:
-                    new_data = out_buf.reduce_channels(new_data, NUM_CHANNELS_OUT)
+                    new_data = out_buf.reduce_channels(new_data, NUM_CHANNELS_IN, NUM_CHANNELS_OUT)
                 out_buf.write_samples(new_data)
-            time.sleep(.001)
+                # Take care of plotting
+                if DO_PLOT:
+                    # Time plot
+                    if NUM_CHANNELS_OUT != 1:
+                        plot_data = out_buf.reduce_channels(new_data, NUM_CHANNELS_OUT, 1)
+                    else:
+                        plot_data = new_data
+                    time_plot.set_ydata(plot_data)
+                    # Frequency plot
+                    freq_plot.set_ydata(np.abs(fft[:FFT_LENGTH / 2 + 1]))
+                    # Update plot
+                    fig.canvas.draw()
+            time.sleep(.01)
     except KeyboardInterrupt:
         print "Program interrupted"
         done = True

@@ -22,7 +22,7 @@
 #define FRAMES_PER_BUFFER   256 /* smaller buffer for realtime */
 #define NUM_SECONDS         2
 #define RING_BUFFER_SECONDS	0.5
-#define NUM_CHANNELS        2   // Stereo
+#define NUM_CHANNELS        1   // Stereo
 
 /* Setup the sample format. */
 #define PA_SAMPLE_TYPE paFloat32
@@ -110,7 +110,7 @@ int main()
 
     
 	if (DEBUG) printf("Setting up input parameters... ");
-    setupInputParameters(&inputParameters);
+    setupInputParametersWithCone(&inputParameters);
 	if (DEBUG) printf("Succeeded using device: %s\n",
 							Pa_GetDeviceInfo(inputParameters.device)->name);
 	if (DEBUG) printf("Setting up output parameters... ");
@@ -263,13 +263,18 @@ static int sinCallback(    const void *inputBuffer,
 void setupInputParametersWithCone( PaStreamParameters *in_pars )
 {
     /* Check if microcone available. If so, use */
-    if (Pa_GetDeviceCount() > 3) {
-        if (strcmp(Pa_GetDeviceInfo(3)->name, 
+    int i;
+    int found = 0;
+    for (i = 0; i < Pa_GetDeviceCount(); i++) {
+        if (strcmp(Pa_GetDeviceInfo(i)->name, 
             "Microcone USB 2.0 Audio In") == 0) {
-            in_pars->device = 3;
+            in_pars->device = i;
             printf("Using microcone\n");
+            found = 1;
+            break;
         } 
-    } else {
+    } 
+    if (!found) {
         in_pars->device = Pa_GetDefaultInputDevice();
         printf("Unable to use microcone\n");
     }

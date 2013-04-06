@@ -25,6 +25,7 @@ typedef enum {
 } stft_error;
 
 
+#define ERR_MSG_BUF_LEN 100
 /**
  * Struct containing all necessary members for perfomring
  * the realtime STFT
@@ -85,5 +86,6 @@ int createRealtimeSTFT( realtimeSTFT *,
 int destroyRealtimeSTFT( realtimeSTFT * );
 int performSTFT( realtimeSTFT *, float *);
 int performISTFT( realtimeSTFT *, float *);
+void getErrorMsg(char * buf);
 
 #endif

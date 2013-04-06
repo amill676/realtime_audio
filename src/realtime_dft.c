@@ -23,10 +23,10 @@
 #include "realtimestft.h"
 
 /* Setup basic options */
-#define SAMPLE_RATE         44100
-#define FRAMES_PER_BUFFER   512 /* smaller buffer for realtime */
+#define SAMPLE_RATE         16000
+#define FRAMES_PER_BUFFER   2048 /* smaller buffer for realtime */
 #define NUM_SECONDS         2
-#define FRAMES_PER_RING_BUFFER 512
+#define FRAMES_PER_RING_BUFFER 4 * FRAMES_PER_BUFFER
 #define NUM_CHANNELS        2
 #define NUM_PLOTS			1
 
@@ -43,10 +43,10 @@ typedef float SAMPLE;
 #define AIRPLAY_STR			"AirPlay"
 
 /* Constants for DFT options */
-#define DFT_LOG_LEN		10 // For length 2^n
+#define DFT_LOG_LEN		11 // For length 2^n
 #define DFT_LEN			(1 << DFT_LOG_LEN)
 #define DFT_RADIX	kFFTRadix2
-#define WINDOW_LOG_LEN  9
+#define WINDOW_LOG_LEN  11
 #define WINDOW_SIZE 	(1 << WINDOW_LOG_LEN)
 #define HOP_LOG_N		(WINDOW_LOG_LEN - 1)
 #define HOP_SIZE		(1 << HOP_LOG_N)
@@ -62,7 +62,7 @@ typedef float SAMPLE;
 #define ABS(a) ( a < 0 ? (-1 * a) : a )
 #define FREQUENCY .5 // Frequency of sin to modulate with
 
-static bool do_plot = true;
+static bool do_plot = false;
 static bool user_did_quit = false;
 #define QUIT_CHAR 'q'
 static OSSpinLock write_lock = OS_SPINLOCK_INIT;
@@ -475,9 +475,15 @@ int main()
 
 	/* Setup stft object */
 	realtimeSTFT stft;
+    int use_window_fcn = 1;
 	err = createRealtimeSTFT(&stft, DFT_LOG_LEN, 
-							WINDOW_LOG_LEN, HOP_LOG_N, NUM_CHANNELS, sizeof(SAMPLE));
-	if (err != STFT_OK) fatal_terminate("Creating STFT obj");
+							WINDOW_LOG_LEN, HOP_LOG_N, NUM_CHANNELS, 
+                            use_window_fcn, sizeof(SAMPLE));
+    char err_msg_buf[ERR_MSG_BUF_LEN];
+	if (err != STFT_OK) {
+        getErrorMsg(err_msg_buf);
+        fatal_terminate(err_msg_buf);
+    }
 
 	/* Setup variables for main loop */
 	ring_buffer_size_t read_num, wrie_num, num_complete, num_written,
@@ -500,11 +506,20 @@ int main()
 
 			/* Filter */
 			int i;
-			//for (j = 0; j < stft.num_channels; j++)
-				for (i = 0; i < stft.num_dfts; i++) {
-					//low_pass_filter(&stft.dfts[i+stft.num_channels], 0.15, DFT_LEN/2);
-					//high_pass_filter(&stft.dfts[i], 0.025, DFT_LEN/2);
-				}
+			//for (j = 0; j < stft.num_channels; j++) {
+			//	for (i = 0; i < stft.num_dfts; i++) {
+			//		//low_pass_filter(&stft.dfts[i+stft.num_channels], 0.15, DFT_LEN/2);
+			//		//high_pass_filter(&stft.dfts[i], 0.025, DFT_LEN/2);
+            //        int k;
+            //        printf("DFT #%d:\n", j * stft.num_dfts + i);
+            //        DSPSplitComplex * dft = 
+            //            (DSPSplitComplex *)&(stft.dfts[j*stft.num_dfts + i]);
+            //        for (k=0; k < 12; k++) {
+            //            printf("%f\t", dft->realp[k]);
+            //        }
+            //        printf("\n");
+			//	}
+            //}
 
 			if (do_plot) {
 				/* Write newest DFT to file so it can be plotted */

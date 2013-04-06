@@ -1,6 +1,7 @@
 __author__ = 'adamjmiller'
 import struct
 import pyaudio
+import threading
 import numpy as np
 
 
@@ -20,7 +21,7 @@ class AudioBuffer:
         pyaudio.paUInt8: 'B'
     }
 
-    def __init__(self, length=2048, n_channels=1):
+    def __init__(self, length, n_channels=1):
         """
         :param length: length of the buffer in samples
         :param n_channels: Number of channels present in the audio samples.
@@ -141,4 +142,12 @@ class AudioBuffer:
         number of samples
         """
         return self._size / self._n_channels
+
+    def _setup_events(self):
+        """
+        Setup the necessary threading.Event objects for synchronizing
+        this buffer
+        """
+        new_audio_event = threading.Event()
+        new_samples_event = threading.Event()
 

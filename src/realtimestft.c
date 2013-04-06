@@ -9,8 +9,10 @@
 #include <string.h>
 
 #define pi (3.14159265)
-
 #define DFT_RADIX kFFTRadix2
+
+static char error_msg_buf[ERR_MSG_BUF_LEN];
+void makeErrMsg(char * msg);
 
 
 /**
@@ -40,23 +42,44 @@ int	createRealtimeSTFT(	realtimeSTFT *obj,
 	}
 
 	/* Setup members of struct */
-	if (dft_logn < 0) return STFT_INVALID_DFTLEN;
-	if (dft_logn != window_logn) return STFT_INVALID_DFTLEN;
-	if (window_logn < 0) return STFT_INVALID_WINDOWSIZE;
-	if (num_channels <= 0) return STFT_INVALID_NUM_CHANNELS;
-	if (obj == NULL) return STFT_NULL_PARAMETER;
+	if (dft_logn < 0) {
+        makeErrMsg("Invalid dft length.");
+        return STFT_INVALID_DFTLEN;
+    }
+	if (dft_logn != window_logn) {
+        makeErrMsg("Window length must equal dft length.");
+        return STFT_INVALID_DFTLEN;
+    }
+	if (window_logn < 0) {
+        makeErrMsg("Window length must be positive.");
+        return STFT_INVALID_WINDOWSIZE;
+    }
+	if (num_channels <= 0) {
+        makeErrMsg("Number of channels must be positive.");
+        return STFT_INVALID_NUM_CHANNELS;
+    }
+	if (obj == NULL) {
+        makeErrMsg("Received null realtimestft object.");
+        return STFT_NULL_PARAMETER;
+    }
 	obj->dft_log2n = dft_logn;
 	obj->window_len = (1 << window_logn);
 	obj->num_channels = num_channels;
 	obj->use_window_fcn = use_window_fcn;
 
 	/* Check for valid hopsize. Assign if valid */
-	if (hop_logn > window_logn) return STFT_INVALID_HOPSIZE;
+	if (hop_logn > window_logn) {
+        makeErrMsg("Hop length must be smaller than window length.");
+        return STFT_INVALID_HOPSIZE;
+    }
 	obj->hop_size = (1 << hop_logn);
 
 	/* Setup window buffer now that parameters are known */
 	obj->window_buf = (float *) malloc((obj->window_len)* sizeof(float));
-	if (obj->window_buf == NULL) return STFT_FAILED_MALLOC;
+	if (obj->window_buf == NULL) {
+        makeErrMsg("Malloc failed in allocating buffer for window.");
+        return STFT_FAILED_MALLOC;
+    }
 	int n, N = obj->window_len;
 	/* Put in hann window */
 	for (n = 0; n < N; n++) {
@@ -68,14 +91,20 @@ int	createRealtimeSTFT(	realtimeSTFT *obj,
 	 * all of a channel's data is placed before the next channel's data */
 	buffer_bytes = 2 * num_channels * (obj->window_len) * sizeof(float);
 	obj->in_buf = (float *) malloc(buffer_bytes);
-	if (obj->in_buf == NULL) return STFT_FAILED_MALLOC;
+	if (obj->in_buf == NULL) {
+        makeErrMsg("malloc failed in allocating input buffer");
+        return STFT_FAILED_MALLOC;
+    }
 	memset(obj->in_buf, 0, buffer_bytes);
 	obj->curr_in_ind = 0;
 
 	/* Setup out buffer */
 	buffer_bytes = 2 * num_channels * (obj->window_len) * sizeof(float);
 	obj->out_buf = (float *) malloc(buffer_bytes);
-	if (obj->out_buf == NULL) return STFT_FAILED_MALLOC;
+	if (obj->out_buf == NULL) {
+        makeErrMsg("malloc failed in allocating output buffer");
+        return STFT_FAILED_MALLOC;
+    }
 	memset(obj->out_buf, 0, buffer_bytes);
 	obj->curr_out_ind = 0;
 
@@ -83,14 +112,25 @@ int	createRealtimeSTFT(	realtimeSTFT *obj,
 	obj->num_dfts = (1 << (window_logn - hop_logn)); // # of dfts
 	obj->dfts = (DSPSplitComplex *) malloc(obj->num_dfts * num_channels *
 									sizeof(DSPSplitComplex));
-	if (obj->dfts == NULL) return STFT_FAILED_MALLOC;
+	if (obj->dfts == NULL) {
+        makeErrMsg("malloc failed in allocating dft array.");
+        return STFT_FAILED_MALLOC;
+    }
 
 	/* Setup each DSPSplitComplex struct in dfts */
 	for (n = 0; n < obj->num_dfts*num_channels; n++) {
 		obj->dfts[n].realp = malloc(sizeof(float) *(1 << (obj->dft_log2n-1)));
-		if (obj->dfts[n].realp == NULL) return STFT_FAILED_MALLOC;
+		if (obj->dfts[n].realp == NULL) {
+            makeErrMsg("malloc failed in setting up vecLib \
+                            DSP struct real buffer");
+            return STFT_FAILED_MALLOC;
+        }
 		obj->dfts[n].imagp = malloc(sizeof(float) *(1 << (obj->dft_log2n-1)));
-		if (obj->dfts[n].imagp == NULL) return STFT_FAILED_MALLOC;
+		if (obj->dfts[n].imagp == NULL) {
+            makeErrMsg("malloc failed in setting up vecLib \
+                            DSP struct imag buffer");
+            return STFT_FAILED_MALLOC;
+        }
 	}
 
 	return STFT_OK;
@@ -184,7 +224,7 @@ int performSTFT( realtimeSTFT *obj, float *data_in )
 					dft_buf[n] *= sqrt(obj->window_buf[n]);
 			}
 
-			split = &obj->dfts[j*obj->num_channels + i];
+			split = &obj->dfts[j*obj->num_dfts + i];
 			/* Put into even-odd format */
 			vDSP_ctoz( (DSPComplex *)dft_buf, 2, split, 1, dft_len/2); 
 			/* Perform dft */
@@ -230,7 +270,7 @@ int performISTFT( realtimeSTFT *obj, float *data_out)
 	for (j = 0; j < obj->num_channels; j++) {
 		for (i = 0; i < obj->num_dfts; i++) {
 
-			curr_dft = &obj->dfts[j*obj->num_channels + i];
+			curr_dft = &obj->dfts[j*obj->num_dfts + i];
 			/* Base index in out buffer for current channel */
 			int chan_base = 2*j*obj->window_len;
 			
@@ -291,3 +331,23 @@ int performISTFT( realtimeSTFT *obj, float *data_out)
 	
 	return STFT_OK;
 }
+
+void getErrorMsg(char * buf) {
+    strcpy(buf, error_msg_buf);
+}
+
+void makeErrMsg(char * msg) {
+    strcpy(error_msg_buf, msg);
+}
+
+//void get_err_msg(stft_error errno, char * buf) {
+//    switch (errno) {
+//        case STFT_OK:
+//            strcpy(buf, "No error.");
+//            break;
+//        case STFT_FAILED_MALLOC:
+//            strcpy(buf, "Malloc failed.");
+//     
+//        default:
+//            strcpy(buf, "Invalid errno");
+//    }
