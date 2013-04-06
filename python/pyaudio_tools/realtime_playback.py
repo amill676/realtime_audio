@@ -3,28 +3,33 @@ import pyaudio
 import time
 import numpy as np
 import threading
+import matplotlib.pyplot as plt
 from pa_tools.audiohelper import AudioHelper
 from pa_tools.audiobuffer import AudioBuffer
 from pa_tools.stftmanager import StftManager
+from dft_conversion import *
 
 
 # Setup constants
 SAMPLE_TYPE = pyaudio.paFloat32
 DATA_TYPE = np.float32
 SAMPLE_SIZE = pyaudio.get_sample_size(SAMPLE_TYPE)
-SAMPLE_RATE = 44100
-FRAMES_PER_BUF = 256  # Do not go below 64, or above 2048
+SAMPLE_RATE = 16000
+FRAMES_PER_BUF = 1024  # Do not go below 64, or above 2048
 FFT_LENGTH = FRAMES_PER_BUF
 WINDOW_LENGTH = FFT_LENGTH
 HOP_LENGTH = WINDOW_LENGTH / 2
-NUM_CHANNELS = 2
+NUM_CHANNELS_IN = 1
+NUM_CHANNELS_OUT = 1
+DO_PLOT = True
+PLOT_FREQ = 1  # For PLOT_FREQ = n, will plot every n loops
 
 # Track whether we have quit or not
 done = False
 
 # Setup data buffers
-in_buf = AudioBuffer(n_channels=NUM_CHANNELS)
-out_buf = AudioBuffer(n_channels=NUM_CHANNELS)
+in_buf = AudioBuffer(n_channels=NUM_CHANNELS_IN)
+out_buf = AudioBuffer(n_channels=NUM_CHANNELS_IN)
 
 
 def read_in_data(in_data, frame_count, time_info, status_flags):
@@ -33,7 +38,7 @@ def read_in_data(in_data, frame_count, time_info, status_flags):
     write_num = in_buf.get_available_write()
     if write_num > frame_count:
         write_num = frame_count
-    in_buf.write_bytes(in_data[:(write_num * SAMPLE_SIZE * NUM_CHANNELS)])
+    in_buf.write_bytes(in_data[:(write_num * SAMPLE_SIZE * NUM_CHANNELS_IN)])
     return None, pyaudio.paContinue
 
 
@@ -43,7 +48,7 @@ def write_out_data(in_data, frame_count, time_info, status_flags):
     if out_buf.get_available_read() >= frame_count:
         return out_buf.read_bytes(frame_count), pyaudio.paContinue
     else:  # Return empty data (returning None will trigger paComplete)
-        return '\x00' * frame_count * SAMPLE_SIZE * NUM_CHANNELS, pyaudio.paContinue
+        return '\x00' * frame_count * SAMPLE_SIZE * NUM_CHANNELS_IN, pyaudio.paContinue
 
 
 def process_dfts(dfts):
@@ -57,7 +62,7 @@ def process_dfts(dfts):
 def process_dft_buf(buf):
     # Low pass filter:
     for i in range(len(buf)):
-        if i > FFT_LENGTH / 16:
+        if i > FFT_LENGTH / 18:
             buf[i] = 0
     pass
 
@@ -81,23 +86,23 @@ if __name__ == '__main__':
                        window_length=WINDOW_LENGTH,
                        hop_length=HOP_LENGTH,
                        use_window_fcn=True,
-                       n_channels=NUM_CHANNELS,
+                       n_channels=NUM_CHANNELS_IN,
                        dtype=DATA_TYPE)
 
     # Get devices
     in_device = helper.get_input_device_from_user()
-    out_device = helper.get_default_output_device_info()
+    out_device = helper.get_output_device_from_user()
 
     # Setup streams
     in_stream = pa.open(rate=SAMPLE_RATE,
-                        channels=NUM_CHANNELS,
+                        channels=NUM_CHANNELS_IN,
                         format=SAMPLE_TYPE,
                         frames_per_buffer=FRAMES_PER_BUF,
                         input=True,
                         input_device_index=int(in_device['index']),
                         stream_callback=read_in_data)
     out_stream = pa.open(rate=SAMPLE_RATE,
-                         channels=NUM_CHANNELS,
+                         channels=NUM_CHANNELS_OUT,
                          format=SAMPLE_TYPE,
                          output=True,
                          frames_per_buffer=FRAMES_PER_BUF,
@@ -112,6 +117,13 @@ if __name__ == '__main__':
     quit_thread = threading.Thread(target=check_for_quit)
     quit_thread.start()
 
+    # Setup plotting
+    if DO_PLOT:
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        plt.show(block=False)
+        plot_count = 0
+
     data1 = np.zeros(WINDOW_LENGTH, dtype=DATA_TYPE)
     try:
         while in_stream.is_active() or out_stream.is_active():
@@ -124,16 +136,27 @@ if __name__ == '__main__':
                 # Process dfts from windowed segments of input
                 dfts = stft.getDFTs()
                 process_dfts(dfts)
+                if DO_PLOT:
+                    if plot_count == PLOT_FREQ:
+                        fft = to_full_fft(dfts[0][0][0], dfts[0][1][0])
+                        ax.cla()
+                        ax.plot(np.abs(fft))
+                        ax.set_ylim(0, 50)
+                        plt.draw()
+                        plot_count = 0
+                    plot_count += 1
                 # Get the istft of the processed data
                 new_data = stft.performIStft()
                 # Write out the new, altered data
+                if NUM_CHANNELS_IN != NUM_CHANNELS_OUT:
+                    new_data = out_buf.reduce_channels(new_data, NUM_CHANNELS_OUT)
                 out_buf.write_samples(new_data)
             time.sleep(.001)
     except KeyboardInterrupt:
         print "Program interrupted"
         done = True
 
-
+    # Clean up
     print "Cleaning up"
     in_stream.stop_stream()
     in_stream.close()

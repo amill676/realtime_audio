@@ -1,6 +1,8 @@
 __author__ = 'adamjmiller'
 from pa_tools.audiohelper import AudioHelper
 import pyaudio
+import numpy as np
+import scipy.fftpack as fft
 import time
 import math
 import struct
@@ -39,6 +41,9 @@ def out_callback(in_data, frame_count, time_info, status):
         return out_data, pyaudio.paContinue
     else:
         return None, pyaudio.paComplete
+
+
+
 
 
 

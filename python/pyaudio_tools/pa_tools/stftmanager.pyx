@@ -13,7 +13,7 @@ cdef class StftManager:
     as well as modifying the data's spectra in realtime.
 
     The length of the FFT, the length of the window, the hop size,
-    the number of channels, the data type, and whether a hann
+    the number of channels, the data type, and whether a
     windowing function should be used are all customizable.
 
     Note that the only window function available is a hann window.
@@ -60,16 +60,16 @@ cdef class StftManager:
         elif np.dtype(dtype) == np.dtype('float'):
             data_size = 8
         else:
-            data_size = -1  # This way an error will occur
+            data_size = -1  # This will cause an error to occur
 
         # Check for valid use_window parameter
-        cdef int c_use_window_fcn = 1
-        if use_window_fcn == True:
-            c_use_window_fcn = 1
-        elif use_window_fcn == False:
-            c_use_window_fcn = 0
-        else:
+        if type(use_window_fcn) is not bool:
             raise ValueError("use_window_fcn should be of boolean type.")
+        cdef int c_use_window_fcn
+        if use_window_fcn:
+            c_use_window_fcn = 1
+        else:
+            c_use_window_fcn = 0
 
         # Note that self is not fully constructed at this point, so
         # don't do anything to self but assign cdef fields for now
@@ -100,7 +100,7 @@ cdef class StftManager:
     cdef _check_error(self, cstft.stft_error error):
         """
         Raise the correct exception corresponding to an error code given
-        @param error: the error code returned from a call to the
+        :param error: the error code returned from a call to the
                       realtimestft library
         """
         if error == cstft.STFT_FAILED_MALLOC:
@@ -133,7 +133,8 @@ cdef class StftManager:
         Get log base 2 of n. Note that it should first be
         verified that the number is a power of 2, since
         this function will only ever return an integer
-        @return: floor( log base 2 of n )
+        :param n: argument
+        :return: floor( log base 2 of n )
         """
         cdef int count = 0
         while n != 1:
@@ -163,8 +164,8 @@ cdef class StftManager:
 
         See getDFTs() and performIStft() for more details
 
-        @type in_data: np.ndarray[dtype=np.float32]
-        @param in_data: input data for stft
+        :type in_data: np.ndarray[dtype=np.float32]
+        :param in_data: input data for stft
         """
         cstft.performSTFT(&self._c_stft, <cnp.float32_t *> in_data.data)
 
@@ -183,7 +184,7 @@ cdef class StftManager:
         The DFT's used for this ISTFT will be the same as those described
         in the output of getDFTs(). See getDFTs() for details.
 
-        @return: numpy array containing segment of istft
+        :return: numpy array containing segment of istft
         """
         cdef cnp.ndarray[dtype=cnp.float32_t] out_buf = \
             np.empty(self._window_length * self._n_channels, dtype=np.float32)
@@ -205,13 +206,15 @@ cdef class StftManager:
 
         These DFT's are returned as a list of tuples of lists. Each tuple corresponds
         to data associated with a certain channel, starting from the first channel.
-        The first list in the tuple contains an array of real parts of the DFT's.
-        The second list in the tuple contains an array of imaginary parts of the DFT.
-        Each array in these lists will be half the dft length, as the input is always
+        The first list in the tuple contains arrays of real parts of the DFT's.
+        The second list in the tuple contains arrays of imaginary parts of the DFT.
+        The kth array in these lists will correspond to either the real or imaginary
+        part of the DFT taken on the kth hop when windowing and transforming the
+        given frame. The arrays will be half the dft length, as the input is always
         real, so negative frequencies are discarded.
 
-        This means that the arrays in the first list and the arrays of
-        the second list can be combined to make up the dft of the first windowed
+        This means that the arrays in the 'real' lists and the arrays of
+        the 'imaginary' lists can be combined to make up the dft of the first windowed
         segment of the stft that is currently available for modifying.
 
         In the real arrays, the first element contains the DC weight, while the
@@ -228,27 +231,57 @@ cdef class StftManager:
         lists will have an effect on the data retrieved from calling
         performIStft().
 
-        @return: a list containing arrays of the real and imaginary components
-                 of the DFT of buffered input data. See description for details
+        :return: a data structure containing arrays of the real and imaginary components
+                 of the DFT of buffered input data. See description for details.
         """
-        cdef cstft.DSPSplitComplex *dft = self._c_stft.dfts
+        cdef cstft.DSPSplitComplex *c_dfts = self._c_stft.dfts
         cdef int n_dfts = self._c_stft.num_dfts
         dfts = []
-        # Lists that will hold pointers to the dft's real and imag components
-        all_reals = []
-        all_imags = []
         # Memory views that will hold data pointed to by realp and imagp pointers
         cdef cnp.float32_t[::1] reals
         cdef cnp.float32_t[::1] imags
+        cdef long real_ptr
+        cdef long imag_ptr
         # Loop through and populate list
         for n in range(self._n_channels):
+            # Lists that will hold pointers to the dft's real and imag components
+            all_reals = []
+            all_imags = []
             for i in range(n_dfts):
-                reals = <cnp.float32_t[:(self._dft_length/2)]> dft[n * n_dfts + i].realp
-                imags = <cnp.float32_t[:(self._dft_length/2)]> dft[n * n_dfts + i].imagp
+                real_ptr = <long> c_dfts[n * n_dfts + i].realp
+                imag_ptr = <long> c_dfts[n * n_dfts + i].imagp
+                reals = <cnp.float32_t[:(self._dft_length/2)]> c_dfts[n * n_dfts + i].realp
+                imags = <cnp.float32_t[:(self._dft_length/2)]> c_dfts[n * n_dfts + i].imagp
                 all_reals.append(reals)
                 all_imags.append(imags)
             dfts.append((all_reals, all_imags))
         return dfts
+
+def print_dfts(dfts):
+    """
+    Print out the given DFTs.
+    :param dfts: Set of dfts that should be in the format returned
+                 from a call to getDFTs
+    """
+    print "Printing DFTS:"
+    sample_len = 12
+    for k in range(len(dfts)):
+        print "Channel %d" %k
+        print "==========="
+        reals = dfts[k][0]
+        imags = dfts[k][1]
+        for i in range(len(reals)):
+            print "Reals %d:" %i
+            out_str = ""
+            for j in range(sample_len):
+                out_str += "%f\t" %reals[i][j]
+            print out_str
+        for i in range(len(imags)):
+            print "Imags %d:" %i
+            out_str = ""
+            for j in range(sample_len):
+                out_str += "%f\t" %imags[i][j]
+            print out_str
 
 
 

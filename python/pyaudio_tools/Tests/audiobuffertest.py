@@ -3,20 +3,14 @@ from pa_tools.audiobuffer import AudioBuffer
 __author__ = 'adamjmiller'
 import unittest
 import pyaudio
+import numpy as np
 import numpy.random
 
 class AudioBufferTest(unittest.TestCase):
 
     def setUp(self):
         self.n_channels = 2
-        self.buff32 = AudioBuffer(16, pyaudio.paFloat32, self.n_channels)
-        self.buf = [
-            AudioBuffer(16, pyaudio.paFloat32, self.n_channels),
-            AudioBuffer(16, pyaudio.paInt32, self.n_channels),
-            AudioBuffer(16, pyaudio.paInt16, self.n_channels),
-            AudioBuffer(16, pyaudio.paInt8, self.n_channels),
-            AudioBuffer(16, pyaudio.paUInt8, self.n_channels)]
-        #self.buf = AudioBuffer(16, pyaudio.paInt32)
+        self.buff32 = AudioBuffer(16, self.n_channels)
         self.data_str = '\x01\x02\x03\x04'
         self.data_strs = [
             '\x01\x02\x03\x04',
@@ -31,7 +25,6 @@ class AudioBufferTest(unittest.TestCase):
 
     def data_of_length(self, length):
         return self.data_str * self.n_channels * length
-
 
     def testBufWrite(self):
         self.buff32.write_bytes(self.data_of_length(12))
@@ -141,12 +134,21 @@ class AudioBufferTest(unittest.TestCase):
         self.assertEquals(self.buff32.get_available_read(), 4)
         self.assertEquals(data_read, self.data_of_length(12))
 
+    def testReduceChannels(self):
+        n_in = 7
+        n_out = 2
+        n_samples = 10
+        data_in = np.arange(n_in * n_samples)
+        buf = AudioBuffer(n_samples, n_in)
+        data_out = buf.reduce_channels(data_in, n_in, n_out)
+        correct = [x for x in range(n_in * n_samples) if x % n_in == 0 or (x - 1) % n_in == 0]
+        self.assertListFloatEqual(correct, data_out)
+
     def assertListFloatEqual(self, list1, list2):
         if not len(list1) == len(list2):
             raise AssertionError("Lists differ in lenght. Cannot be equal")
         for i in range(len(list1)):
             self.assertLessEqual(abs(list1[i] - list2[i]), 1e-4)
-
 
     def tearDown(self):
         print "Completed"

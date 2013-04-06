@@ -9,11 +9,8 @@ class AudioBuffer:
     A FIFO buffer class for audio data. Data is put in and
     retrieved as byte arrays (strings)
 
-    NOTE: This class will not work for custom sample formats or
-    paInt24 samples formats
-
-    @param length: length of the buffer in samples
-    @param d_type: sample format type. Should be in pyaudio form (paFloat32 e.g.)
+    NOTE: This class uses np.float32 data type to work properly
+    with portaudio
     """
     _format = {
         pyaudio.paFloat32: 'f',
@@ -23,20 +20,27 @@ class AudioBuffer:
         pyaudio.paUInt8: 'B'
     }
 
-    def __init__(self, length=2048, d_type=pyaudio.paFloat32, n_channels=1):
+    def __init__(self, length=2048, n_channels=1):
+        """
+        :param length: length of the buffer in samples
+        :param n_channels: Number of channels present in the audio samples.
+        """
         self._n_channels = n_channels
-        self._length = length * self._n_channels # Length in samples
-        self._sample_size = pyaudio.get_sample_size(d_type)
-        self._sample_format = self._format[d_type]
+        self._length = length * self._n_channels  # Length in samples
+        self._sample_size = pyaudio.get_sample_size(pyaudio.paFloat32)
+        self._sample_format = self._format[pyaudio.paFloat32]
+        # Intialize state variables
         self._size = 0
         self._write_start = 0
         self._read_start = 0
+        # Instantiate buffer
         self._buffer = np.zeros(self._length * self._n_channels, dtype=np.float32)
 
     def write_samples(self, data):
         """
-        Write data to the buffer
-        @param data: a numpy array of data frames in the format specified when
+        Write data to the buffer using a numeric data format (as opposed
+        to bytearray as used in write_bytes()
+        :param data: a numpy array of data frames in the format specified when
                      creating the AudioBuffer. Data for different channels
                      should be interlaced
         """
@@ -58,7 +62,7 @@ class AudioBuffer:
     def read_samples(self, n_samples):
         """
         Get data from buffer in the form of samples.
-        @return: list of samples in the format the was specified when
+        :return: list of samples in the format the was specified when
                     creating the AudioBuffer
         """
         n_samples = n_samples * self._n_channels
@@ -79,7 +83,9 @@ class AudioBuffer:
 
     def write_bytes(self, data):
         """
-        Pushes the input data to the end of the buffer
+        Write data to the buffer, where the data is in the form of a
+        bytearray
+        :param data: Data to be written. Should be a bytearray (string)
         """
         # Ensure input is of proper type and size
         if not type(data) == str:
@@ -97,22 +103,41 @@ class AudioBuffer:
         If there are less than n_bytes available, it will return all
         data in the buffer
 
-        @param n_samples: number of frames of data to retrieve
-        @return: 'n_bytes' bytes from the buffer in the form of a string
+        :param n_samples: number of frames of data to retrieve
+        :return: 'n_bytes' bytes from the buffer in the form of a string
         """
         data = self.read_samples(n_samples)
         return struct.pack("%d%s" % (len(data), self._sample_format), *data)
 
+    def reduce_channels(self, data, n_chan_in, n_chan_out):
+        """
+        Return array of samples consisting only of samples from
+        the first 'n_chan_out' channels of the given data samples.
+        Note that data should be in the form of data samples of float32
+        type. It should not be a bytearray
+        :param data: Data array of samples in the format returned by
+                        read_samples()
+        :param n_chan_out: Number of channels to retain in the modified
+                            data array
+        :return: Data from the first n_chan_out channels of the input data
+        """
+        new_size = len(data) * (float(n_chan_out) / float(n_chan_in))
+        data_out = np.empty((new_size,))
+        for n in range(len(data) / n_chan_in):
+            data_out[n * n_chan_out: (n + 1) * n_chan_out] = \
+                data[n * n_chan_in: n * n_chan_in + n_chan_out]
+        return data_out
+
     def get_available_write(self):
         """
-        @return: the amount of available space in the buffer in number
+        :return: the amount of available space in the buffer in number
          of samples
         """
         return (self._length - self._size) / self._n_channels
 
     def get_available_read(self):
         """
-        @return: the amount of data in the buffer that can be read in
+        :return: the amount of data in the buffer that can be read in
         number of samples
         """
         return self._size / self._n_channels
