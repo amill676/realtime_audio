@@ -19,17 +19,18 @@ FRAMES_PER_BUF = 4096  # Do not go below 64, or above 2048
 FFT_LENGTH = FRAMES_PER_BUF
 WINDOW_LENGTH = FFT_LENGTH
 HOP_LENGTH = WINDOW_LENGTH / 2
-NUM_CHANNELS_IN = 7
+NUM_CHANNELS_IN = 2
 NUM_CHANNELS_OUT = 2
 DO_PLOT = False
 PLOT_FREQ = 1  # For PLOT_FREQ = n, will plot every n loops
+TIMEOUT = 2  # Number of seconds to wait for new samples before giving up
 
 # Track whether we have quit or not
 done = False
 
 # Setup data buffers
 in_buf = AudioBuffer(length=4 * FRAMES_PER_BUF, n_channels=NUM_CHANNELS_IN)
-out_buf = AudioBuffer(length=4 * FRAMES_PER_BUF, n_channels=NUM_CHANNELS_IN)
+out_buf = AudioBuffer(length=4 * FRAMES_PER_BUF, n_channels=NUM_CHANNELS_OUT)
 
 
 def read_in_data(in_data, frame_count, time_info, status_flags):
@@ -39,6 +40,7 @@ def read_in_data(in_data, frame_count, time_info, status_flags):
     if write_num > frame_count:
         write_num = frame_count
     in_buf.write_bytes(in_data[:(write_num * SAMPLE_SIZE * NUM_CHANNELS_IN)])
+    in_buf.notify_of_audio()
     return None, pyaudio.paContinue
 
 
@@ -138,10 +140,13 @@ if __name__ == '__main__':
         plt.show(block=False)
 
     data1 = np.zeros(WINDOW_LENGTH, dtype=DATA_TYPE)
+    count = 0
     try:
         while in_stream.is_active() or out_stream.is_active():
-            available = min(in_buf.get_available_read(), out_buf.get_available_write())
-            if available >= WINDOW_LENGTH:  # If enough space to transfer data
+            data_is_available = in_buf.wait_for_read(WINDOW_LENGTH, TIMEOUT)
+            if data_is_available:# and out_buf.get_available_write() >= WINDOW_LENGTH:
+            #available = min(in_buf.get_available_read(), out_buf.get_available_write())
+            #if available >= WINDOW_LENGTH:  # If enough space to transfer data
                 # Get data from the circular buffer
                 data = in_buf.read_samples(WINDOW_LENGTH)
                 # Perform an stft
@@ -158,7 +163,9 @@ if __name__ == '__main__':
                 # Alter data so it can be written out
                 if NUM_CHANNELS_IN != NUM_CHANNELS_OUT:
                     new_data = out_buf.reduce_channels(new_data, NUM_CHANNELS_IN, NUM_CHANNELS_OUT)
-                out_buf.write_samples(new_data)
+                print out_buf.get_available_write()
+                if out_buf.get_available_write() >= WINDOW_LENGTH:
+                    out_buf.write_samples(new_data)
                 # Take care of plotting
                 if DO_PLOT:
                     # Time plot
@@ -171,7 +178,7 @@ if __name__ == '__main__':
                     freq_plot.set_ydata(np.abs(fft[:FFT_LENGTH / 2 + 1]))
                     # Update plot
                     fig.canvas.draw()
-            time.sleep(.01)
+            #time.sleep(.001)
     except KeyboardInterrupt:
         print "Program interrupted"
         done = True

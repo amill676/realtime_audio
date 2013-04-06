@@ -7,8 +7,11 @@ import numpy as np
 
 class AudioBuffer:
     """
-    A FIFO buffer class for audio data. Data is put in and
-    retrieved as byte arrays (strings)
+    A FIFO buffer class for audio data. Data can be put in and
+    retrieved as byte arrays (strings) or as float samples.
+
+    The class includes a blocking interface that will allow callers
+    to efficiently wait for available data without expensive polling
 
     NOTE: This class uses np.float32 data type to work properly
     with portaudio
@@ -36,6 +39,8 @@ class AudioBuffer:
         self._read_start = 0
         # Instantiate buffer
         self._buffer = np.zeros(self._length * self._n_channels, dtype=np.float32)
+
+        self._setup_events()
 
     def write_samples(self, data):
         """
@@ -143,11 +148,41 @@ class AudioBuffer:
         """
         return self._size / self._n_channels
 
+    def wait_for_read(self, n_samples, timeout=None):
+        """
+        Will block until n_samples are available for reading from buffer, or
+        until the specified timeout has elapsed.
+        :param n_samples: number of samples to wait for
+        :type n_samples: int
+        :param timeout: maximum number of seconds to wait. Default is infinite
+        :type timeout: float
+        :return: True if the desired number of samples is available. False
+                 if timed out while waiting
+        """
+        while self.get_available_read() < n_samples:
+            if timeout:
+                succeeded = self._new_audio_event.wait(timeout)
+            else:
+                succeeded = self._new_audio_event.wait()
+            self._new_audio_event.clear()
+            if not succeeded:
+                return False
+        return True
+
+    def notify_of_audio(self):
+        """
+        Will notify the buffer that new audio has been posted to the buffer.
+        This will allow the buffer to update any threads waiting on available
+        data, and is necessary for proper functionality.
+        """
+        self._new_audio_event.set()
+
     def _setup_events(self):
         """
         Setup the necessary threading.Event objects for synchronizing
         this buffer
         """
-        new_audio_event = threading.Event()
-        new_samples_event = threading.Event()
+        self._new_audio_event = threading.Event()
+        self._new_audio_event.clear()
+
 

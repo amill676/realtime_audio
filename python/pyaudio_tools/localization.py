@@ -18,11 +18,11 @@ SAMPLE_TYPE = pyaudio.paFloat32
 DATA_TYPE = np.float32
 SAMPLE_SIZE = pyaudio.get_sample_size(SAMPLE_TYPE)
 SAMPLE_RATE = 16000
-FRAMES_PER_BUF = 4096  # Do not go below 64
+FRAMES_PER_BUF = 1024  # Do not go below 64
 FFT_LENGTH = FRAMES_PER_BUF
 WINDOW_LENGTH = FFT_LENGTH
 HOP_LENGTH = WINDOW_LENGTH / 2
-NUM_CHANNELS_IN = 7
+NUM_CHANNELS_IN = 2
 NUM_CHANNELS_OUT = 2
 N_THETA = 20
 N_PHI = N_THETA / 2
@@ -60,11 +60,10 @@ def read_in_data(in_data, frame_count, time_info, status_flags):
     if done:  # Must do this or calls to stop_stream may not succeed
         return None, pyaudio.paComplete
     write_num = in_buf.get_available_write()
-    print write_num
     if write_num > frame_count:
         write_num = frame_count
     in_buf.write_bytes(in_data[:(write_num * SAMPLE_SIZE * NUM_CHANNELS_IN)])
-    audio_produced_event.set()
+    in_buf.notify_of_audio()
     return None, pyaudio.paContinue
 
 
@@ -189,10 +188,6 @@ def localize():
     quit_thread = threading.Thread(target=check_for_quit)
     quit_thread.start()
 
-    ## Start thread to check for new audio data
-    new_data_thread = threading.Thread(target=check_new_data_event)
-    new_data_thread.start()
-
     # Plotting
     if PLOT_CARTES:
         fig = plt.figure()
@@ -218,18 +213,10 @@ def localize():
     try:
         global done
         while in_stream.is_active() or out_stream.is_active():
-            data_available = data_produced_event.wait(TIMEOUT)  # Wait for new data to be available
-            #data_produced_event.clear()
+            data_available = in_buf.wait_for_read(WINDOW_LENGTH, TIMEOUT)
             if data_available:
-            #available = min(in_buf.get_available_read(), out_buf.get_available_write())
-            #if available >= WINDOW_LENGTH:  # If enough space to transfer data
                 # Get data from the circular buffer
                 data = in_buf.read_samples(WINDOW_LENGTH)
-                # Check if all data has been read. If so, clear the event so we can sleep
-                # until more data is available
-                if in_buf.get_available_read() < WINDOW_LENGTH:
-                    data_produced_event.clear()
-                print "cleared"
                 # Perform an stft
                 stft.performStft(data)
                 # Process dfts from windowed segments of input
