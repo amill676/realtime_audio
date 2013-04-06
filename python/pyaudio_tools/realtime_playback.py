@@ -15,13 +15,13 @@ SAMPLE_TYPE = pyaudio.paFloat32
 DATA_TYPE = np.float32
 SAMPLE_SIZE = pyaudio.get_sample_size(SAMPLE_TYPE)
 SAMPLE_RATE = 16000
-FRAMES_PER_BUF = 4096  # Do not go below 64, or above 2048
+FRAMES_PER_BUF = 1024  # Do not go below 64, or above 2048
 FFT_LENGTH = FRAMES_PER_BUF
 WINDOW_LENGTH = FFT_LENGTH
 HOP_LENGTH = WINDOW_LENGTH / 2
 NUM_CHANNELS_IN = 2
 NUM_CHANNELS_OUT = 2
-DO_PLOT = False
+DO_PLOT = True
 PLOT_FREQ = 1  # For PLOT_FREQ = n, will plot every n loops
 TIMEOUT = 2  # Number of seconds to wait for new samples before giving up
 
@@ -153,7 +153,7 @@ if __name__ == '__main__':
                 stft.performStft(data)
                 # Process dfts from windowed segments of input
                 dfts = stft.getDFTs()
-                #process_dfts(dfts)
+                process_dfts(dfts)
                 if DO_PLOT:
                     # Must update here because dfts are altered upon calling ISTFT since
                     # the dft is performed in place
