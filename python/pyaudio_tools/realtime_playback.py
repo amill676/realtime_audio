@@ -14,8 +14,8 @@ from dft_conversion import *
 SAMPLE_TYPE = pyaudio.paFloat32
 DATA_TYPE = np.float32
 SAMPLE_SIZE = pyaudio.get_sample_size(SAMPLE_TYPE)
-SAMPLE_RATE = 16000
-FRAMES_PER_BUF = 1024  # Do not go below 64, or above 2048
+SAMPLE_RATE = 44100
+FRAMES_PER_BUF = 2048  # Do not go below 64, or above 2048
 FFT_LENGTH = FRAMES_PER_BUF
 WINDOW_LENGTH = FFT_LENGTH
 HOP_LENGTH = WINDOW_LENGTH / 2
@@ -50,7 +50,7 @@ def write_out_data(in_data, frame_count, time_info, status_flags):
     if out_buf.get_available_read() >= frame_count:
         return out_buf.read_bytes(frame_count), pyaudio.paContinue
     else:  # Return empty data (returning None will trigger paComplete)
-        return '\x00' * frame_count * SAMPLE_SIZE * NUM_CHANNELS_IN, pyaudio.paContinue
+        return '\x00' * frame_count * SAMPLE_SIZE * NUM_CHANNELS_OUT, pyaudio.paContinue
 
 
 def process_dfts(dfts):
@@ -134,6 +134,7 @@ if __name__ == '__main__':
         freq_ax = fig.add_subplot(212)
         freq_plot, = freq_ax.plot(np.linspace(0, SAMPLE_RATE / 2., FFT_LENGTH / 2 + 1), np.zeros(FFT_LENGTH / 2 + 1))
         freq_ax.set_ylim(0, 50)
+        freq_ax.set_xlim(0, SAMPLE_RATE / 2.)
         freq_ax.set_ylabel('Magnitude')
         freq_ax.set_xlabel('Frequency (Hz)')
         # Show figure
@@ -153,7 +154,7 @@ if __name__ == '__main__':
                 stft.performStft(data)
                 # Process dfts from windowed segments of input
                 dfts = stft.getDFTs()
-                process_dfts(dfts)
+                #process_dfts(dfts)
                 if DO_PLOT:
                     # Must update here because dfts are altered upon calling ISTFT since
                     # the dft is performed in place
@@ -163,7 +164,6 @@ if __name__ == '__main__':
                 # Alter data so it can be written out
                 if NUM_CHANNELS_IN != NUM_CHANNELS_OUT:
                     new_data = out_buf.reduce_channels(new_data, NUM_CHANNELS_IN, NUM_CHANNELS_OUT)
-                print out_buf.get_available_write()
                 if out_buf.get_available_write() >= WINDOW_LENGTH:
                     out_buf.write_samples(new_data)
                 # Take care of plotting

@@ -17,8 +17,8 @@ from pa_tools.distributionlocalizer import DistributionLocalizer
 SAMPLE_TYPE = pyaudio.paFloat32
 DATA_TYPE = np.float32
 SAMPLE_SIZE = pyaudio.get_sample_size(SAMPLE_TYPE)
-SAMPLE_RATE = 8000
-FRAMES_PER_BUF = 2048  # Do not go below 64
+SAMPLE_RATE = 44100
+FRAMES_PER_BUF = 4096  # Do not go below 64
 FFT_LENGTH = FRAMES_PER_BUF
 WINDOW_LENGTH = FFT_LENGTH
 HOP_LENGTH = WINDOW_LENGTH / 2
@@ -197,7 +197,14 @@ def localize():
     if PLOT_POLAR:
         fig = plt.figure()
         ax = fig.add_axes([.1, .1, .8, .8], projection='polar')
+        ax.set_rlim(0, 1)
         plt.show(block=False)
+        # Setup space for plotting in new coordinates
+        spher_coords = localizer.get_spher_coords()
+        pol = localizer.to_spher_grid(spher_coords[2, :])
+        weight = 1. - .3 * np.sin(2 * pol)  # Used to pull visualization off edges
+        r = np.sin(pol) * weight
+        theta = localizer.to_spher_grid(spher_coords[1, :])
 
     data1 = np.zeros(WINDOW_LENGTH, dtype=DATA_TYPE)
     count = 0
@@ -240,21 +247,16 @@ def localize():
                         plt.draw()
                     if PLOT_POLAR:
                         plt.cla()
-                        spher = localizer.get_spher_coords()
                         d = localizer.to_spher_grid(d[3, :])
-                        pol = localizer.to_spher_grid(spher[2, :])
-                        weight = 1. - .3 * np.sin(2 * pol)  # Used to pull visualization off edges
-                        r = np.sin(pol) * weight
-                        theta = localizer.to_spher_grid(spher[1, :])
-                        ax.pcolor(theta, r, d, cmap='gist_heat')#, vmin=0, vmax=4)
-                        ax.set_rmax(1)
+                        con = ax.contourf(theta, r, d)#, vmin=0, vmax=4)
+                        con.set_cmap('gist_heat')
                         #if np.max(d[3, :]) > plot_max:
                         #    plot_max = np.max(d[3, :])
                         #if np.min(d[3, :]) < plot_min:
                         #    plot_min = np.min(d[3, :])
                         #print "plot_max: %f, plot_min: %f" % (plot_max, plot_min)
                         #print "current_max: %f, current_min: %f" % (np.max(d[3, :]), np.min(d[3, :]))
-                        plt.draw()
+                        fig.canvas.draw()
                 count += 1
 
                 # Get the istft of the processed data

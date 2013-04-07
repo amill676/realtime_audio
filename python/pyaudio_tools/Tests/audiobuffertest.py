@@ -110,7 +110,6 @@ class AudioBufferTest(unittest.TestCase):
         self.assertEquals(data_read, self.data_of_length(12))
         self.assertEquals(self.buff32.get_available_read(), 0)
 
-
     def testInvalidData(self):
         caught = False
         try:

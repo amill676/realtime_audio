@@ -39,7 +39,7 @@ class AudioBuffer:
         self._read_start = 0
         # Instantiate buffer
         self._buffer = np.zeros(self._length * self._n_channels, dtype=np.float32)
-
+        # Setup blocking interface events
         self._setup_events()
 
     def write_samples(self, data):
@@ -53,8 +53,8 @@ class AudioBuffer:
         try:
             iter(data)
         except:
-            raise ValueError("Input must be an iterable collection of data in correct sammple format")
-            # Deal with wraparound in buffer
+            raise ValueError("Input must be an iterable collection of data in correct sample format")
+        # Deal with wraparound in buffer
         if len(data) + self._write_start > self._length:
             num_to_end = self._length - self._write_start
             self._buffer[self._write_start:self._length] = data[:num_to_end]
