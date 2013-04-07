@@ -3,7 +3,8 @@ from pa_tools.audiolocalizer import AudioLocalizer
 import numpy as np
 import matplotlib.pylab as plt
 import math
-import time
+import constants as consts
+import mattools as mat
 
 class DistributionLocalizer(AudioLocalizer):
 
@@ -46,19 +47,19 @@ class DistributionLocalizer(AudioLocalizer):
         #ffts *= self._lpf_H  # LPF incoming audio
         ffts[:, self._cutoff_index:-self._cutoff_index + 1] = 0
         auto_corr = ffts[0, :] * ffts[1:, :].conjugate()
-        auto_corr /= (np.abs(ffts[0, :]) + self.EPS)
+        auto_corr /= (np.abs(ffts[0, :]) + consts.EPS)
         # For some reason, 'whitening' both sources causes problems (underflow?)
         #auto_corr /= (np.abs(ffts[0, :]) * np.abs(ffts[1:, :]))
         # Get correlation values
-        corrs = np.zeros((self._n_mics - 1, self._n_theta * self._n_phi), dtype=self.REAL_DTYPE)
+        corrs = np.zeros((self._n_mics - 1, self._n_theta * self._n_phi), dtype=consts.REAL_DTYPE)
         for i in range(corrs.shape[1]):
             e_shift = np.exp(-1j * 2 * math.pi * self._freq_space[:, :, i] / self._dft_len)
             shifted = auto_corr * e_shift
             corrs[:, i] = np.real(np.sum(shifted, axis=1))  # idft for n = 0
         # Normalize ang get probability for each direction
-        distr = np.empty((4, self._n_theta * self._n_phi), dtype=self.REAL_DTYPE)
+        distr = np.empty((4, self._n_theta * self._n_phi), dtype=consts.REAL_DTYPE)
         distr[0:3, :] = self._directions
-        distr[3, :] = np.maximum(np.prod(corrs, axis=0), self.EPS)
+        distr[3, :] = np.maximum(np.prod(corrs, axis=0), consts.EPS)
         #distr[3, :] = np.log(distr[3, :])
         #distr[3, :] -= np.log(1.e14)
         return distr
@@ -67,27 +68,27 @@ class DistributionLocalizer(AudioLocalizer):
         cutoff_index = (self.CUTOFF_FREQ / self._sample_rate) * (self._dft_len / 2)
         lowffts = rffts[:, :cutoff_index]  # Low pass filtered
         auto_corr = lowffts[0, :] * lowffts[1:, :].conjugate()
-        auto_corr /= (np.abs(lowffts[0, :]) + self.EPS)
+        auto_corr /= (np.abs(lowffts[0, :]) + consts.EPS)
         # Get correlation values from time domain
-        corrs = np.zeros((self._n_mics - 1, self._n_theta * self._n_phi), dtype=self.REAL_DTYPE)
+        corrs = np.zeros((self._n_mics - 1, self._n_theta * self._n_phi), dtype=consts.REAL_DTYPE)
         for i in range(corrs.shape[1]):
             e_shift = np.exp(-1j * 2 * math.pi * self._real_freq_space[:, :, i] / self._dft_len)
             shifted = auto_corr * e_shift
             corrs[:, i] = np.real(shifted[:, 0] + 2 * np.sum(shifted[:, 1:], axis=1))  # ifft for n = 0
-        distr = np.empty((4, self._n_theta * self._n_phi), dtype=self.REAL_DTYPE)
+        distr = np.empty((4, self._n_theta * self._n_phi), dtype=consts.REAL_DTYPE)
         distr[0:3, :] = self._directions
-        distr[3, :] = np.maximum(np.prod(corrs, axis=0), self.EPS)
+        distr[3, :] = np.maximum(np.prod(corrs, axis=0), consts.EPS)
         return distr
 
     def get_3d_real_distribution(self, dfts):
-        rffts = self.to_real_matlab_format(dfts)
+        rffts = mat.to_real_matlab_format(dfts)
         return self.get_distribution_real(rffts)
 
     def get_3d_distribution(self, dfts):
         """
         Get distribution of source direction across 3d search space
         """
-        ffts = self.to_matlab_format(dfts)
+        ffts = mat.to_matlab_format(dfts)
         return self.get_distribution_mat(ffts)
 
     def get_spher_coords(self):
@@ -134,8 +135,8 @@ class DistributionLocalizer(AudioLocalizer):
         phi = np.linspace(0, math.pi / 2, self._n_phi)
 
         # Setup array of direction vectors
-        self._directions = np.empty((3, self._n_theta * self._n_phi), dtype=self.REAL_DTYPE)
-        self._spher_directions = np.empty((3, self._n_theta * self._n_phi), dtype=self.REAL_DTYPE)
+        self._directions = np.empty((3, self._n_theta * self._n_phi), dtype=consts.REAL_DTYPE)
+        self._spher_directions = np.empty((3, self._n_theta * self._n_phi), dtype=consts.REAL_DTYPE)
         for p in range(self._n_phi):
             for t in range(self._n_theta):
                 ind = p * self._n_theta + t
@@ -151,15 +152,15 @@ class DistributionLocalizer(AudioLocalizer):
     def _setup_freq_space(self):
         # Setup delays between first mic and all others
         self._delays = -1 * self._distances.dot(self._directions) * \
-                       self._sample_rate / self.SPEED_OF_SOUND
+                       self._sample_rate / consts.SPEED_OF_SOUND
         # Setup frequency space
         self._freq_space = np.empty((self._n_mics - 1, self._dft_len, self._n_theta * self._n_phi))
-        nn = np.hstack((np.arange(0, self._dft_len / 2, dtype=self.REAL_DTYPE),
-                        np.arange(-self._dft_len / 2, 0, dtype=self.REAL_DTYPE)))
+        nn = np.hstack((np.arange(0, self._dft_len / 2, dtype=consts.REAL_DTYPE),
+                        np.arange(-self._dft_len / 2, 0, dtype=consts.REAL_DTYPE)))
         # Setup frequency space efficiently
         self._cutoff_index = self._compute_cutoff_index()
         self._real_freq_space = np.empty((self._n_mics - 1, self._cutoff_index, self._n_theta * self._n_phi))
-        real_nn = np.arange(0, self._cutoff_index, dtype=self.REAL_DTYPE)
+        real_nn = np.arange(0, self._cutoff_index, dtype=consts.REAL_DTYPE)
         if self._cutoff_index == self._dft_len / 2 + 1:
             real_nn[-1] *= -1  # Last entry is for -(dft_len / 2)
         # Setup space for each set of delays
@@ -167,7 +168,7 @@ class DistributionLocalizer(AudioLocalizer):
             self._freq_space[:, :, i] = np.outer(self._delays[:, i], nn)
             self._real_freq_space[:, :, i] = np.outer(self._delays[:, i], real_nn)
         # Store previous distribution for when signal energy is very low
-        self._prev_distr = np.zeros((4, self._n_phi * self._n_theta), dtype=self.REAL_DTYPE)
+        self._prev_distr = np.zeros((4, self._n_phi * self._n_theta), dtype=consts.REAL_DTYPE)
         self._prev_distr[:3, :] = self._directions
 
     def _compute_cutoff_index(self):

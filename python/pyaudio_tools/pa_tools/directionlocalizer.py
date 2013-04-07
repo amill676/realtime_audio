@@ -2,8 +2,11 @@ __author__ = 'Adam Miller'
 from pa_tools.audiolocalizer import AudioLocalizer
 import scipy.fftpack as fftp
 import numpy as np
+import mattools as mat
 import math
 import sys
+import constants as consts
+import mattools as mat
 
 class DirectionLocalizer(AudioLocalizer):
 
@@ -42,7 +45,7 @@ class DirectionLocalizer(AudioLocalizer):
         auto_corr = ffts[0, :].conjugate() * ffts[1:, :]
 
         # Discrete freq domain
-        k = np.arange(dft_len, dtype=self.REAL_DTYPE)
+        k = np.arange(dft_len, dtype=consts.REAL_DTYPE)
         # Shifts
         taus = np.linspace(-self._shift_max, self._shift_max, self._shift_n)
         # Will hold values at t=0 of transformed autocorr
@@ -55,7 +58,7 @@ class DirectionLocalizer(AudioLocalizer):
         return peaks
 
     def get_direction(self, dfts):
-        ffts = self.to_matlab_format(dfts)
+        ffts = mat.to_matlab_format(dfts)
         #print "ffts: " + str(ffts)
         return self.get_direction_np(ffts)
 
@@ -68,7 +71,7 @@ class DirectionLocalizer(AudioLocalizer):
         samp_period = 1. / float(self._sample_rate)
         delays = np.argmax(peaks, 1)  # Indices in peaks
         #print "delays: " + str(delays)
-        delays = peaks[0, delays[1:]] * samp_period * self.SPEED_OF_SOUND
+        delays = peaks[0, delays[1:]] * samp_period * consts.SPEED_OF_SOUND
         #print "delays: " + str(delays)
 
         if self._use_angle:
@@ -85,7 +88,7 @@ class DirectionLocalizer(AudioLocalizer):
             return direction.T[0]
 
         # Now we have the time delays, so we solve system
-        direction = self.cholesky_solve(self._distances, delays)
+        direction = mat.cholesky_solve(self._distances, delays)
         norm = np.linalg.norm(direction, 2)
         if norm != 0:
             direction /= np.linalg.norm(direction, 2)

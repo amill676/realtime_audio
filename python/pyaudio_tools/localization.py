@@ -18,7 +18,7 @@ SAMPLE_TYPE = pyaudio.paFloat32
 DATA_TYPE = np.float32
 SAMPLE_SIZE = pyaudio.get_sample_size(SAMPLE_TYPE)
 SAMPLE_RATE = 44100
-FRAMES_PER_BUF = 4096  # Do not go below 64
+FRAMES_PER_BUF = 4096  # For 44100 Fs, be careful going over 4096, loud sounds may occur...
 FFT_LENGTH = FRAMES_PER_BUF
 WINDOW_LENGTH = FFT_LENGTH
 HOP_LENGTH = WINDOW_LENGTH / 2
@@ -248,7 +248,7 @@ def localize():
                     if PLOT_POLAR:
                         plt.cla()
                         d = localizer.to_spher_grid(d[3, :])
-                        con = ax.contourf(theta, r, d)#, vmin=0, vmax=4)
+                        con = ax.contourf(theta, r, d, vmin=0, vmax=40)
                         con.set_cmap('gist_heat')
                         #if np.max(d[3, :]) > plot_max:
                         #    plot_max = np.max(d[3, :])

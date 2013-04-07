@@ -160,7 +160,7 @@ class AudioBuffer:
                  if timed out while waiting
         """
         while self.get_available_read() < n_samples:
-            if timeout:
+            if timeout is not None:
                 succeeded = self._new_audio_event.wait(timeout)
             else:
                 succeeded = self._new_audio_event.wait()

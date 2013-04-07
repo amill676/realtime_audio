@@ -45,8 +45,6 @@ cdef extern from "/Users/adamjmiller/Programming/audio/include/realtimestft.h":
     stft_error performSTFT( realtimeSTFT *, float * )
     stft_error performISTFT( realtimeSTFT *, float * )
 
-    cdef perforStft(self, arr)
-
 
 
 

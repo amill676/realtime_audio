@@ -4,8 +4,10 @@ import numpy as np
 
 
 class MicLayout:
-    def __init__(self, n_dimensions=2):
-        self._positions = np.empty
+    def __init__(self, positions):
+        self._positions = positions
+
+
 
 
 
