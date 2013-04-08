@@ -50,9 +50,8 @@ def to_full_fft(reals, imags):
     fft = np.empty(dft_len, dtype=consts.COMPLEX_DTYPE)
     fft[0] = reals[0]  # DC component stored here. Must be real - real signal
     fft[dft_len / 2] = imags[0]  # Nyquist component here. Must be real - real signal
-    for i in range(1, dft_len / 2):
-        fft[i] = reals[i] + 1j * imags[i]
-        fft[-1 * i] = reals[i] -1j * imags[i]
+    fft[1:dft_len / 2] = np.asarray(reals)[1:dft_len / 2] + 1j * np.asarray(imags[1:dft_len / 2])
+    fft[-1:dft_len / 2:-1] = np.asarray(reals)[1:dft_len / 2] -1j * np.asarray(imags[1:dft_len / 2])
     return fft
 
 
@@ -69,8 +68,9 @@ def to_real_fft(reals, imags):
     fft = np.empty(half_dft_len, dtype=consts.COMPLEX_DTYPE)
     fft[0] = reals[0]  # DC component stored here. Must be real - real signal
     fft[half_dft_len - 1] = imags[0]  # Nyquist component here. Must be real - real signal
-    for i in range(1, half_dft_len - 1):
-        fft[i] = reals[i] + 1j * imags[i]
+    # By using a slice instead of a for loop hear we get ~1000 times speed improvement...
+    fft[1:half_dft_len -1] = np.asarray(reals, dtype=np.float32)[1:half_dft_len - 1] + \
+                             1j * np.asarray(imags, dtype=np.float32)[1:half_dft_len - 1]
     return fft
 
 
@@ -103,6 +103,40 @@ def to_real_matlab_format(dfts):
         dft_arr[i, :] = to_real_fft(reals, imags)
     return dft_arr
 
+def to_all_real_matlab_format(dfts):
+    half_dft_len = len(dfts[0][0][0]) + 1
+    num_chan = len(dfts)
+    num_hops = len(dfts[0][0])
+    #dft_arr = np.empty((num_chan, half_dft_len, num_hops), dtype=consts.COMPLEX_DTYPE)
+    dft_arr = np.empty((num_chan, half_dft_len, num_hops), dtype=consts.COMPLEX_DTYPE)
+    for i in range(num_chan):
+        for k in range(num_hops):
+            reals = dfts[i][0][k]
+            imags = dfts[i][1][k]
+            dft_arr[i, :, k] = to_real_fft(reals, imags)
+    return dft_arr
+
+def set_dft_real(reals, imags, rfft):
+    if len(reals) != len(imags):
+        raise ValueError("reals and imags should have same length")
+    if len(reals) + 1 != len(rfft):
+        raise ValueError("len(rfft) should be 1 + len(reals)")
+    reals[0] = np.real(rfft[0])
+    imags[0] = np.real(rfft[-1])
+    half_dft_len = len(reals)
+    reals[1:half_dft_len] = np.ascontiguousarray(np.real(rfft)[1:half_dft_len], dtype=np.float32)
+    imags[1:half_dft_len] = np.ascontiguousarray(np.imag(rfft)[1:half_dft_len], dtype=np.float32)
+
+# Use for setting dfts using result from beamformer
+def set_dfts_real(dfts, all_rffts, n_channels=None):
+    if n_channels is None or n_channels > len(dfts):
+        n_channels = len(dfts)
+    n_hops = len(dfts[0][0])
+    for n in range(n_channels):
+        reals = dfts[n][0]
+        imags = dfts[n][1]
+        for k in range(n_hops):
+            set_dft_real(reals[k], imags[k], all_rffts[k, :])
 
 def zip_fft(reals, imags):
     """
@@ -115,6 +149,29 @@ def zip_fft(reals, imags):
         zipped[2 * i] = imags[i]
     return zipped
 
+def replace_n_chans_real(n_chans, dfts, rfft):
+    """
+    Will replace the first n channels of the dfts object
+    with the fft corresponding to rfft.
+    :param n_chans: number of channels to replace
+    :param dfts: object output from getDFTs() call to StftManger
+    :param rfft: the positve half of an fft to use in replacement
+    """
+    pass
+
+def dft_mult(reals, imags, rfft):
+    if len(reals) != len(imags):
+        raise ValueError("reals and imags length must be same")
+    if len(reals) + 1 != len(rfft):
+        raise ValueError("rfft must be of length 1 + len(reals)")
+    n = len(reals)
+    reals[0] *= np.real(rfft[0])
+    imags[0] *= np.real(rfft[-1])  # Nyquist
+    for k in range(1, n):
+        new_r = reals[k] * np.real(rfft[k]) - imags[k] * np.imag(rfft[k])
+        new_i = reals[k] * np.imag(rfft[k]) + imags[k] * np.real(rfft[k])
+        reals[k] = new_r
+        imags[k] = new_i
 
 def normalize_rows(a):
     """

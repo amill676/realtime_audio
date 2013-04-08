@@ -6,11 +6,12 @@ import threading
 import math
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import pa_tools.mattools as mat
 from pa_tools.audiohelper import AudioHelper
 from pa_tools.audiobuffer import AudioBuffer
 from pa_tools.stftmanager import StftManager
-from pa_tools.audiolocalizer import AudioLocalizer
 from pa_tools.distributionlocalizer import DistributionLocalizer
+from pa_tools.beamformer import BeamFormer
 
 
 # Setup constants
@@ -30,17 +31,18 @@ PLOT_CARTES = False
 PLOT_POLAR = True
 EXTERNAL_PLOT = False
 PLAY_AUDIO = True
+DO_BEAMFORM = True
 TIMEOUT = 1
 # Setup mics
 R = 0.0375
 H = 0.07
 mic_layout = np.array([[0, 0, H],
-     [R, 0, 0],
-     [R*math.cos(math.pi/3), R*math.sin(math.pi/3), 0],
-     [-R*math.cos(math.pi/3), R*math.sin(math.pi/3), 0],
-     [-R, 0, 0],
-     [-R*math.cos(math.pi/3), -R*math.sin(math.pi/3), 0],
-     [R*math.cos(math.pi/3), -R*math.sin(math.pi/3), 0]])
+                       [R, 0, 0],
+                       [R*math.cos(math.pi/3), R*math.sin(math.pi/3), 0],
+                       [-R*math.cos(math.pi/3), R*math.sin(math.pi/3), 0],
+                       [-R, 0, 0],
+                       [-R*math.cos(math.pi/3), -R*math.sin(math.pi/3), 0],
+                       [R*math.cos(math.pi/3), -R*math.sin(math.pi/3), 0]])
 # Track whether we have quit or not
 done = False
 
@@ -131,6 +133,7 @@ def localize():
                                       sample_rate=SAMPLE_RATE,
                                       n_theta=N_THETA,
                                       n_phi=N_PHI)
+    beamformer = BeamFormer(mic_layout, SAMPLE_RATE)
 
     # Setup STFT object
     stft = StftManager(dft_length=FFT_LENGTH,
@@ -156,12 +159,12 @@ def localize():
                         input_device_index=int(in_device['index']),
                         stream_callback=read_in_data)
     out_stream = pa.open(rate=SAMPLE_RATE,
-                             channels=NUM_CHANNELS_OUT,
-                             format=SAMPLE_TYPE,
-                             output=True,
-                             frames_per_buffer=FRAMES_PER_BUF,
-                             output_device_index=int(out_device['index']),
-                             stream_callback=write_out_data)
+                         channels=NUM_CHANNELS_OUT,
+                         format=SAMPLE_TYPE,
+                         output=True,
+                         frames_per_buffer=FRAMES_PER_BUF,
+                         output_device_index=int(out_device['index']),
+                         stream_callback=write_out_data)
 
     # Start recording/playing back
     in_stream.start_stream()
@@ -195,6 +198,7 @@ def localize():
 
     count = 0
     direcs = localizer.get_directions()
+    align_mats = localizer.get_pos_align_mat()
     try:
         global done
         while in_stream.is_active() or out_stream.is_active():
@@ -206,9 +210,16 @@ def localize():
                 stft.performStft(data)
                 # Process dfts from windowed segments of input
                 dfts = stft.getDFTs()
-                d = localizer.get_3d_real_distribution(dfts)
+                rffts = mat.to_all_real_matlab_format(dfts)
+                d = localizer.get_distribution_real(rffts[:, :, 0])
                 ind = np.argmax(d)
                 u = 1.5 * direcs[:, ind]  # Direction of arrival
+
+                # Do beam forming
+                if DO_BEAMFORM:
+                    align_mat = align_mats[:, :, ind]
+                    filtered = beamformer.filter_real(rffts, align_mat)
+                    mat.set_dfts_real(dfts, filtered, n_channels=2)
 
                 # Take car of plotting
                 if count % 1 == 0:
@@ -235,7 +246,7 @@ def localize():
                     # Write out the new, altered data
                     if out_buf.get_available_write() >= WINDOW_LENGTH:
                         out_buf.write_samples(new_data)
-            #time.sleep(.05)
+                        #time.sleep(.05)
     except KeyboardInterrupt:
         print "Program interrupted"
         done = True

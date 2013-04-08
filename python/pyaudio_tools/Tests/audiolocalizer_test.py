@@ -29,6 +29,19 @@ class AudioLocalizerTest(unittest.TestCase):
                                 window_length=self.dft_len,
                                 hop_length=self.dft_len,
                                 use_window_fcn=False)
+        mic_positions = np.array([[1, 1, 0],
+                                  [-1, 1, 0],
+                                  [-1, -1, 0],
+                                  [1, -1, 0],
+                                  [0, 0, 1]])
+        self._n_mics = mic_positions.shape[0]
+        self._n_theta = 4
+        self._n_phi = 4
+        self.distrloc = DistributionLocalizer(mic_positions=mic_positions,
+                                              dft_len=self.dft_len,
+                                              sample_rate=44100,
+                                              n_theta=self._n_theta,
+                                              n_phi=self._n_phi)
         pass
 
     def testGetPeaks(self):
@@ -155,8 +168,6 @@ class AudioLocalizerTest(unittest.TestCase):
         print ifft
         #self.assertEquals(0, 1)
 
-
-
     def testGetDistribution3D(self):
         R = 0.0375
         H = 0.07
@@ -220,23 +231,32 @@ class AudioLocalizerTest(unittest.TestCase):
             G = np.fft.fft(g, n=window_len, axis=1)
             G_real = np.fft.rfft(g, n=window_len, axis=1)
 
+            direcs = loc.get_directions()
             d_real = loc.get_distribution_real(G_real)
             d = loc.get_distribution_mat(G)
-            for i in range(d.shape[0]):
-                self.assertListFloatEqual(d[i, :], d_real[i, :])
-            print "max: " + str(np.max(d[3, :]))
-            print "min: " + str(np.min(d[3, :]))
-            maxind = np.argmax(d[3, :])
-            u = 1.5 * d[0:3, maxind]
+            self.assertListFloatEqual(d, d_real)
+            print "max: " + str(np.max(d))
+            print "min: " + str(np.min(d))
+            maxind = np.argmax(d)
+            u = 1.5 * direcs[:, maxind]
             v = 1.5 * source / np.linalg.norm(source, 2)
+            self.assertLessEqual(np.sqrt(np.sum((u / 1.5 - v / 1.5) ** 2)), .2)
             plt.cla()
-            ax.scatter(d[0, :], d[1, :], d[2, :], s=30, c=d[3, :])
+            ax.scatter(direcs[0, :], direcs[1, :], direcs[2, :], s=30, c=d)
             ax.plot([0, v[0]], [0, v[1]], [0, v[2]])
             ax.plot([0, u[0]], [0, u[1]], [0, u[2]], c='r')
             #ax.view_init(azim=-90, elev=90)
             plt.draw()
             time.sleep(.5)
         #self.assertEquals(0, 1)
+
+    def testGetAlignMats(self):
+        a_mats = self.distrloc.get_align_mat()
+        self.assertTupleEqual(a_mats.shape, (self._n_mics, self.dft_len, self._n_theta * self._n_phi))
+
+    def testGetPosAlignMats(self):
+        a_mats = self.distrloc.get_pos_align_mat()
+        self.assertTupleEqual(a_mats.shape, (self._n_mics, self.dft_len / 2 + 1, self._n_theta * self._n_phi))
 
     def assertListFloatEqual(self, list1, list2):
         if not len(list1) == len(list2):

@@ -91,6 +91,19 @@ class MatToolsTest(unittest.TestCase):
         self.assertListFloatEqual(chan1, dft_arr[0, :])
         self.assertListFloatEqual(chan2, dft_arr[1, :])
 
+    def testAllToRealMatlab(self):
+        dfts = []
+        dfts.append(([[4, 0, 1, 0], [1, 0, 0, 1]], [[2, 1, 0, 0], [0, 1, 1, 0]]))
+        dfts.append(([[1, 0, 0, 1], [4, 0, 1, 0]], [[0, 1, 1, 0], [2, 1, 0, 0]]))
+        dft_arr = mat.to_all_real_matlab_format(dfts)
+        chan1 = np.array([4, 1j, 1, 0, 2], dtype=np.complex64)
+        chan2 = np.array([1, 1j, 1j, 1, 0], dtype=np.complex64)
+        print dft_arr
+        self.assertListFloatEqual(chan1, dft_arr[0, :, 0])
+        self.assertListFloatEqual(chan2, dft_arr[0, :, 1])
+        self.assertListFloatEqual(chan2, dft_arr[1, :, 0])
+        self.assertListFloatEqual(chan1, dft_arr[1, :, 1])
+
     def testNormalizeRows(self):
         data = np.array([[1, 0, 3],
                          [0, 0, 0],
@@ -104,6 +117,53 @@ class MatToolsTest(unittest.TestCase):
         mat.normalize_rows(data[1:, :])
         self.assertEquals((data[1:, :] - correct[1:, :]).any(), False)
         self.assertEquals((data[0] - np.array([1, 0, 3])).any(), False)
+
+    def testSetDftReal(self):
+        dfts = []
+        list1 = list(np.array([4, 0, 1, 0], dtype=np.float32))
+        dfts.append(([list1], [[2., 1, 0, 0]]))
+        dfts.append(([[1., 0, 0, 1]], [[0., 1, 1, 0]]))
+        rfft = np.array([1, 2j, 3, 4j, 5], dtype=np.complex64)
+        mat.set_dft_real(dfts[0][0][0], dfts[0][1][0], rfft)
+        mat.set_dft_real(dfts[1][0][0], dfts[1][1][0], rfft)
+        print dfts[0][0][0]
+        self.assertListFloatEqual(dfts[0][0][0], [1, 0, 3, 0])
+        self.assertListFloatEqual(dfts[0][1][0], [5, 2, 0, 4])
+        self.assertListFloatEqual(dfts[1][0][0], [1, 0, 3, 0])
+        self.assertListFloatEqual(dfts[1][1][0], [5, 2, 0, 4])
+
+    def testSetDftsReal(self):
+        dfts = []
+        dfts.append(([[4, 0, 1, 0], [1, 0, 0, 1]], [[2, 1, 0, 0], [0, 1, 1, 0]]))
+        dfts.append(([[1, 0, 0, 1], [4, 0, 1, 0]], [[0, 1, 1, 0], [2, 1, 0, 0]]))
+        rffts = np.array([[1, 2j, 3, 4j, 5], [10, 20j, 30, 40j, 50]], dtype=np.complex64)
+        mat.set_dfts_real(dfts, rffts)
+        for n in range(2):
+            reals = dfts[n][0]
+            imags = dfts[n][1]
+            self.assertListEqual(reals[0], [1, 0, 3, 0])
+            self.assertListEqual(imags[0], [5, 2, 0, 4])
+            self.assertListEqual(reals[1], [10, 0, 30, 0])
+            self.assertListEqual(imags[1], [50, 20, 0, 40])
+
+    def testSetDftsReal1Chan(self):
+        dfts = []
+        dfts.append(([[4, 0, 1, 0], [1, 0, 0, 1]], [[2, 1, 0, 0], [0, 1, 1, 0]]))
+        dfts.append(([[1, 0, 0, 1], [4, 0, 1, 0]], [[0, 1, 1, 0], [2, 1, 0, 0]]))
+        rffts = np.array([[1, 2j, 3, 4j, 5], [10, 20j, 30, 40j, 50]], dtype=np.complex64)
+        mat.set_dfts_real(dfts, rffts, n_channels=1)
+        reals = dfts[0][0]
+        imags = dfts[0][1]
+        self.assertListEqual(reals[0], [1, 0, 3, 0])
+        self.assertListEqual(imags[0], [5, 2, 0, 4])
+        self.assertListEqual(reals[1], [10, 0, 30, 0])
+        self.assertListEqual(imags[1], [50, 20, 0, 40])
+        reals = dfts[1][0]
+        imags = dfts[1][1]
+        self.assertListEqual(reals[0], [1, 0, 0, 1])
+        self.assertListEqual(imags[0], [0, 1, 1, 0])
+        self.assertListEqual(reals[1], [4, 0, 1, 0])
+        self.assertListEqual(imags[1], [2, 1, 0, 0])
 
     def assertListFloatEqual(self, list1, list2):
             if not len(list1) == len(list2):
