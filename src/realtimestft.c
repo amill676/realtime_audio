@@ -222,6 +222,7 @@ int performSTFT( realtimeSTFT *obj, float *data_in )
 				int n;
 				for (n=0; n<window_len; n++)
 					dft_buf[n] *= sqrt(obj->window_buf[n]);
+                    //dft_buf[n] *= obj->window_buf[n];
 			}
 
 			split = &obj->dfts[j*obj->num_dfts + i];
@@ -301,6 +302,7 @@ int performISTFT( realtimeSTFT *obj, float *data_out)
 					ind = (obj->curr_out_ind + i*obj->hop_size + n) % 
 										( 2 * obj->window_len ) + chan_base;
 					obj->out_buf[ind] += sqrt(obj->window_buf[n])*idft_buf[n];
+                    //obj->out_buf[ind] += obj->window_buf[n] * idft_buf[n];
 				}
 			} else {
 				for (n = 0; n < obj->window_len; n++) {

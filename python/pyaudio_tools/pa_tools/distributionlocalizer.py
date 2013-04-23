@@ -125,10 +125,10 @@ class DistributionLocalizer(AudioLocalizer):
         the FFTs of each microhpones signal, will align the signals
         as if they came from the different possible source directions.
 
-        The returned matrix is of size (nmics, dft_len / 2 + 1, n_phi * n_theta)
+        The returned matrix is of size (nmics, dft_len, n_phi * n_theta)
         Therefore, for a returned matrix 'mat', mat[:, :, i] will give
         the described alignment matrix for a source coming from direction
-        (get_directions)[:, :, i]
+        (get_directions)[:, i]
         """
         sm_copy = self._shift_mats.copy()
         mic0_shifts = np.ones((1, self._dft_len, self._n_theta * self._n_phi))

@@ -42,9 +42,9 @@ class BeamFormer(object):
         n_hops = all_rffts.shape[2]
         dft_len = align_mat.shape[1]
         output = np.empty((n_hops, dft_len), dtype=consts.COMPLEX_DTYPE)
-        h = np.ones((self._n_mics,))  # Delay and Sum filter
+        h = self.get_filter()
         for k in range(n_hops):
-            output[k, :] = h.T.dot(align_mat * all_rffts[:, :, k]) / self._n_mics
+            output[k, :] = h.T.dot(align_mat * all_rffts[:, :, k])
         return output
 
     def _get_delays(self, doa):
@@ -67,13 +67,36 @@ class BeamFormer(object):
         distances = np.insert(-1 * self._mic_distances.dot(doa), 0, mic_0_delay)
         return self._sample_rate * distances / consts.SPEED_OF_SOUND
 
-    def _get_filter(self):
+    def get_filter(self):
         """
         Get the spatial filter for given direction of arrival.
         """
         #if len(doa) != self._n_dimensions:
         #    ValueError("The direction of arrival should have the same dimensions"
         #               "as the space in which the microphones are located")
-        return np.ones((self._n_mics,))  # Delay and sum filter
+        return np.ones((self._n_mics,)) / self._n_mics  # Delay and sum filter
+
+    def get_beam(self, align_mat, align_mats, freq):
+        """
+        Return the spatial filter magnitude response for a given frequency
+        corresponding to a source from a direction that will result in the
+        given alignment matrix
+        :param align_mat: matrix for aligning signal DFTs that will be unique for
+                          a certain DOA. Should be in same format as for filter_real.
+                          This means it should only have alignment for positive part
+                          of the DFT
+        :param align_mats: 3 dimensional matrix where each entry along the third dimension
+                            is an alignment matrix of the form of align_mat. Each of
+                            these alignment matrixes corresponds to the alignment of a possible
+                            source direciton
+        :param freq: frequency in Hz
+        :returns: spatial filter magnitude response for coordinates as returned by
+        """
+        pos_dft_len = align_mat.shape[1]
+        freq_ind = int((freq / self._sample_rate) * (pos_dft_len - 1) * 2)
+        h = self.get_filter() * align_mat[:, freq_ind].conj()
+        response = align_mats[:, freq_ind, :]
+        return np.abs(h.dot(response))
+
 
 

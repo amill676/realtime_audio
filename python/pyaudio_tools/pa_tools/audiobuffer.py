@@ -38,7 +38,8 @@ class AudioBuffer:
         self._write_start = 0
         self._read_start = 0
         # Instantiate buffer
-        self._buffer = np.zeros(self._length * self._n_channels, dtype=np.float32)
+        self._buffer = np.zeros(self._length, dtype=np.float32)
+        print self._buffer.shape
         # Setup blocking interface events
         self._setup_events()
 
@@ -114,6 +115,12 @@ class AudioBuffer:
         """
         data = self.read_samples(n_samples)
         return struct.pack("%d%s" % (len(data), self._sample_format), *data)
+
+    def read_whole_buffer(self):
+        """
+        This will return all of the data that is currently stored in the buffer
+        """
+        return self._buffer.copy()
 
     def reduce_channels(self, data, n_chan_in, n_chan_out):
         """

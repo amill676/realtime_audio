@@ -23,6 +23,7 @@ NUM_CHANNELS_IN = 2
 NUM_CHANNELS_OUT = 2
 DO_PLOT = True
 PLOT_FREQ = 1  # For PLOT_FREQ = n, will plot every n loops
+PLOT_CUTOFF_FREQ = 8000
 TIMEOUT = 2  # Number of seconds to wait for new samples before giving up
 
 # Track whether we have quit or not
@@ -132,9 +133,11 @@ if __name__ == '__main__':
         time_ax.set_xlabel('Sample')
         # Setup frequency plot and bounds. Each loop only update data
         freq_ax = fig.add_subplot(212)
-        freq_plot, = freq_ax.plot(np.linspace(0, SAMPLE_RATE / 2., FFT_LENGTH / 2 + 1), np.zeros(FFT_LENGTH / 2 + 1))
+        cutoff_ind = int((2 * float(PLOT_CUTOFF_FREQ) / float(SAMPLE_RATE) * FFT_LENGTH))
+        print cutoff_ind
+        freq_plot, = freq_ax.plot(np.linspace(0, PLOT_CUTOFF_FREQ, cutoff_ind), np.zeros(cutoff_ind))
         freq_ax.set_ylim(0, 50)
-        freq_ax.set_xlim(0, SAMPLE_RATE / 2.)
+        freq_ax.set_xlim(0, PLOT_CUTOFF_FREQ)
         freq_ax.set_ylabel('Magnitude')
         freq_ax.set_xlabel('Frequency (Hz)')
         # Show figure
@@ -154,7 +157,7 @@ if __name__ == '__main__':
                 stft.performStft(data)
                 # Process dfts from windowed segments of input
                 dfts = stft.getDFTs()
-                #process_dfts(dfts)
+                process_dfts(dfts)
                 if DO_PLOT:
                     # Must update here because dfts are altered upon calling ISTFT since
                     # the dft is performed in place
@@ -175,7 +178,7 @@ if __name__ == '__main__':
                         plot_data = new_data
                     time_plot.set_ydata(plot_data)
                     # Frequency plot
-                    freq_plot.set_ydata(np.abs(fft[:FFT_LENGTH / 2 + 1]))
+                    freq_plot.set_ydata(np.abs(fft[:cutoff_ind]))
                     # Update plot
                     fig.canvas.draw()
             #time.sleep(.001)
