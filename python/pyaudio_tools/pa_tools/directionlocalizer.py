@@ -1,12 +1,13 @@
+from mattools import mattools as mat
+
 __author__ = 'Adam Miller'
 from pa_tools.audiolocalizer import AudioLocalizer
 import scipy.fftpack as fftp
 import numpy as np
-import mattools as mat
 import math
 import sys
 import constants as consts
-import mattools as mat
+
 
 class DirectionLocalizer(AudioLocalizer):
 

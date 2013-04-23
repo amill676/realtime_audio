@@ -1,6 +1,6 @@
 __author__ = 'Adam Miller'
 import numpy as np
-import constants as consts
+import pa_tools.constants as consts
 import math
 
 
@@ -209,3 +209,30 @@ def cholesky_solve(a, b):
     y = np.linalg.solve(L, a.T.dot(b))
     x = np.linalg.solve(L.T, y)
     return x
+
+
+def check_3d_vec(vec):
+    """
+    Ensure that the input is a 3-d vector and has float type.
+    :returns: The float version of the vector if it has proper size. If already
+                float, no copy is made
+    """
+    if len(vec.shape) != 1:
+        raise ValueError("vectors must be a numpy vector array (should have only one axis)")
+    if len(vec) != 3:
+        raise ValueError("vectors must be 3 dimensional")
+    return to_float(vec)
+
+
+def to_float(arr):
+    """
+    Return the array with a floating point dtype. If the array
+    already has such a dtype, it will not be copied, but simply
+    returned
+    :param arr: numpy array to be converted
+    """
+    dtype = arr.dtype
+    if not (dtype is np.float16 or dtype is np.float32 or dtype is np.float64 or
+                    dtype is np.complex64 or dtype is np.complex128):
+        return arr.astype(np.float64)  # Same as np.float
+    return arr

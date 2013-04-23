@@ -1,19 +1,21 @@
 __author__ = 'adamjmiller'
-import pyaudio
 import wave
 import struct
-import numpy as np
 import threading
 import math
+
+import pyaudio
+import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+
 import pa_tools.constants as consts
-import pa_tools.mattools as mat
+import mattools.mattools as mat
 from pa_tools.audiohelper import AudioHelper
 from pa_tools.audiobuffer import AudioBuffer
 from pa_tools.stftmanager import StftManager
 from pa_tools.distributionlocalizer import DistributionLocalizer
 from pa_tools.beamformer import BeamFormer
+
 
 # Setup constants
 SAMPLE_TYPE = pyaudio.paFloat32

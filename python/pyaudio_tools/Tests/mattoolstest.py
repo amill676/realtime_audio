@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import scipy.fftpack as fftp
 from pa_tools.stftmanager import StftManager
-import pa_tools.mattools as mat
+import mattools.mattools as mat
 
 
 class MatToolsTest(unittest.TestCase):

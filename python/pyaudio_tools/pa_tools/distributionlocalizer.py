@@ -1,10 +1,10 @@
+from mattools import mattools as mat
+
 __author__ = 'Adam Miller'
 from pa_tools.audiolocalizer import AudioLocalizer
 import numpy as np
-import matplotlib.pylab as plt
 import math
 import constants as consts
-import mattools as mat
 import sys
 
 class DistributionLocalizer(AudioLocalizer):

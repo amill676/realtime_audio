@@ -1,6 +1,6 @@
 __author__ = 'Adam Miller'
 import numpy as np
-
+import mattools as tools
 
 class SourcePlane(object):
     """
@@ -33,8 +33,8 @@ class SourcePlane(object):
         :returns: 3-dimensional numpy vector describing intersection coordinate.
                   If the line and plane do not intersect, None is returned
         """
-        lin_offset = self._check_vec(offset)
-        grad = self._check_vec(grad)
+        lin_offset = tools.check_3d_vec(offset)
+        grad = tools.check_3d_vec(grad)
         print grad
         print self._normal
         # Check if line and plane are parallel
@@ -47,31 +47,8 @@ class SourcePlane(object):
         """
         Ensure vector parameters passed to init are valid
         """
-        self._normal = self._check_vec(normal)
-        self._offset = self._check_vec(offset)
+        self._normal = tools.check_3d_vec(normal)
+        self._offset = tools.check_3d_vec(offset)
 
-    def _check_vec(self, vec):
-        """
-        Ensure that the input is a 3-d vector and has float type.
-        :returns: The float version of the vector if it has proper size. If already
-                    float, no copy is made
-        """
-        if len(vec.shape) != 1:
-            raise ValueError("vectors must be a numpy vector array (should have only one axis)")
-        if len(vec) != 3:
-            raise ValueError("vectors must be 3 dimensional")
-        return self._to_float(vec)
 
-    def _to_float(self, arr):
-        """
-        Return the array with a floating point dtype. If the array
-        already has such a dtype, it will not be copied, but simply
-        returned
-        :param arr: numpy array to be converted
-        """
-        dtype = arr.dtype
-        if not (dtype is np.float16 or dtype is np.float32 or dtype is np.float64 or
-                    dtype is np.complex64 or dtype is np.complex128):
-            return arr.astype(np.float64)  # Same as np.float
-        return arr
 

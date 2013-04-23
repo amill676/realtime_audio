@@ -1,5 +1,6 @@
 __author__ = 'Adam Miller'
 from sourceplane import SourcePlane
+import mattools as tools
 import numpy as np
 
 
@@ -59,6 +60,7 @@ class SearchSpace(object):
         Get the location of the source using the estimated direction of
         the source from the perspective of teh microphone array (localizer)
         :param dir_from_mic: 3-d vector as numpy array. Direction from localizer
+        :returns: Absolute coordinates of the source as 3-d vector (numpy array)
         """
         # Setup line along projected source direction
         offset = self._mic_loc
@@ -77,6 +79,21 @@ class SearchSpace(object):
                 estimate = location
                 estimate_dist = dist
         return estimate
+
+    def get_camera_dir(self, dir_from_mic):
+        """
+        Get the direction to the source from the camera's point of view
+        :param dir_from_mic: 3-d vector numpy array that is the DOA estimate
+                             from the mic's perspective
+        :returns: direction to source from camera as 3-d vector (numpy array)
+        """
+        location = self.get_source_loc(dir_from_mic)
+        vec = location - self._cam_loc
+        # Normalize
+        norm = np.sum(vec ** 2) ** .5
+        if norm != 0:
+            vec /= norm
+        return vec
 
 
 
