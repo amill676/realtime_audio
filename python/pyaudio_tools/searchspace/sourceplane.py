@@ -14,7 +14,7 @@ class SourcePlane(object):
         """
         self._verify_params(normal, offset)
 
-    def line_intersection(self, offset, grad):
+    def line_intersection(self, grad, offset):
         """
         Find point at which the line described by the given parameters
         will intersect the plane. This will be a 3 dimensional coordinate
@@ -30,10 +30,16 @@ class SourcePlane(object):
 
         :param offset: 3-dimensional numpy vector describing line offset
         :param grad: 3-dimensional numpy vector describing line gradient
-        :returns: 3-dimensional numpy vector describing intersection coordinate
+        :returns: 3-dimensional numpy vector describing intersection coordinate.
+                  If the line and plane do not intersect, None is returned
         """
-        lin_offset = self._to_float(offset)
-        grad = self._to_float(grad)
+        lin_offset = self._check_vec(offset)
+        grad = self._check_vec(grad)
+        print grad
+        print self._normal
+        # Check if line and plane are parallel
+        if abs(np.max(grad.dot(self._normal))) < 1e-9:
+            return None
         t = (self._normal.dot(self._offset - lin_offset)) / (self._normal.dot(grad))
         return lin_offset + t * grad
 
@@ -41,16 +47,20 @@ class SourcePlane(object):
         """
         Ensure vector parameters passed to init are valid
         """
-        if len(normal.shape) != 1:
-            raise ValueError("normal vector must be a numpy vector array "
-                             "(should have only one dimension")
-        if len(offset.shape) != 1:
-            raise ValueError("offset vector must be a numpy vector array "
-                             "(should have only one dimension")
-        if len(normal) != 3 or len(offset) != 3:
-            raise ValueError("normal and offset should be three dimensional vectors")
-        self._normal = self._to_float(normal)
-        self._offset = self._to_float(offset)
+        self._normal = self._check_vec(normal)
+        self._offset = self._check_vec(offset)
+
+    def _check_vec(self, vec):
+        """
+        Ensure that the input is a 3-d vector and has float type.
+        :returns: The float version of the vector if it has proper size. If already
+                    float, no copy is made
+        """
+        if len(vec.shape) != 1:
+            raise ValueError("vectors must be a numpy vector array (should have only one axis)")
+        if len(vec) != 3:
+            raise ValueError("vectors must be 3 dimensional")
+        return self._to_float(vec)
 
     def _to_float(self, arr):
         """

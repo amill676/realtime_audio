@@ -4,7 +4,7 @@ import numpy as np
 from searchspace import SourcePlane
 
 
-class SourcePlaReTest(unittest.TestCase):
+class SourcePlaneTest(unittest.TestCase):
 
     def setUp(self):
         pass
@@ -40,17 +40,26 @@ class SourcePlaReTest(unittest.TestCase):
         plane = SourcePlane(normal, offset)
         lin_off = np.array([0, 0, 0])
         grad = np.array([1, 1, 1])
-        intersection = plane.line_intersection(lin_off, grad)
+        intersection = plane.line_intersection(grad, lin_off)
         self.assertListEqual(list(intersection), [2.5, 2.5, 2.5])
 
     def testLineIntersection2(self):
         normal = np.array([2, 2, 2])
-        offset = np.array([0, 0, 7])
+        offset = np.array([0, 0, 2])
         plane = SourcePlane(normal, offset)
         lin_off = np.array([0, 0, -2])
         grad = np.array([-1, -1, -2])
-        intersection = plane.line_intersection(lin_off, grad)
-        self.assertListEqual(list(intersection), [2.25, 2.25, 2.5])
+        intersection = plane.line_intersection(grad, lin_off)
+        self.assertListEqual(list(intersection), [1, 1, 0])
+
+    def testLineIntersection3(self):
+        normal = np.array([0, 1, 0])
+        offset = np.array([0, 5, 0])
+        plane = SourcePlane(normal, offset)
+        mic_loc = np.array([0, 0, 0])
+        direction = np.array([-1, 1, 1])
+        loc = plane.line_intersection(direction, mic_loc)
+        self.assertListEqual(list(loc), [-5, 5, 5])
 
     def tearDown(self):
         pass
