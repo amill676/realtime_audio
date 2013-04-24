@@ -35,12 +35,8 @@ class SearchSpace(object):
         """
         Verify location inputs and setup associated member variables
         """
-        if len(mic_loc.shape) != 1 or len(cam_loc.shape) != 1:
-            raise ValueError('mic_loc and cam_loc should be numpy vectors. (Should have one axis)')
-        if len(mic_loc) != 3 or len(cam_loc) != 3:
-            raise ValueError('mic_loc and cam_loc should be 3 dimensional vectors')
-        self._mic_loc = mic_loc
-        self._cam_loc = cam_loc
+        self._mic_loc = tools.check_3d_vec(mic_loc)
+        self._cam_loc = tools.check_3d_vec(cam_loc)
 
     def _process_planes(self, planes):
         """

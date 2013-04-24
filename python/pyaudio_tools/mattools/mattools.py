@@ -217,10 +217,20 @@ def check_3d_vec(vec):
     :returns: The float version of the vector if it has proper size. If already
                 float, no copy is made
     """
-    if len(vec.shape) != 1:
-        raise ValueError("vectors must be a numpy vector array (should have only one axis)")
+    vec = check_vec(vec)
     if len(vec) != 3:
         raise ValueError("vectors must be 3 dimensional")
+    return vec
+
+
+def check_vec(vec):
+    """
+    Ensure that the input is a vector and has float type.
+    :returns: the float version of the vector if it is a vector.
+                 Raises ValueError otherwise
+    """
+    if len(vec.shape) != 1:
+        raise ValueError("vectors must be a numpy vector array (should have only one axis)")
     return to_float(vec)
 
 
@@ -236,3 +246,11 @@ def to_float(arr):
                     dtype is np.complex64 or dtype is np.complex128):
         return arr.astype(np.float64)  # Same as np.float
     return arr
+
+
+def norm2(vec):
+    """
+    Return the 2-norm of a vector
+    """
+    vec = check_vec(vec)
+    return (float(np.sum(vec ** 2))) ** .5

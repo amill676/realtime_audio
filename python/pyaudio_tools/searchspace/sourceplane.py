@@ -2,6 +2,7 @@ __author__ = 'Adam Miller'
 import numpy as np
 import mattools as tools
 
+
 class SourcePlane(object):
     """
     Class to represent the plane on which a source may lie within

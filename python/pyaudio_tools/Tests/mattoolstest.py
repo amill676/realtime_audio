@@ -165,6 +165,31 @@ class MatToolsTest(unittest.TestCase):
         self.assertListEqual(reals[1], [4, 0, 1, 0])
         self.assertListEqual(imags[1], [2, 1, 0, 0])
 
+    def testCheckVecEmpty(self):
+        vec = np.array([])
+        mat.check_vec(vec)
+        vec = np.array([[]])
+        self.assertRaises(ValueError, mat.check_vec, vec)
+
+    def testCheckVecMat(self):
+        vec = np.array([[1]])
+        self.assertRaises(ValueError, mat.check_vec, vec)
+        vec = np.array([[2, 4, 5], [2, 3, 3]])
+        self.assertRaises(ValueError, mat.check_vec, vec)
+
+    def testCheck3dVecMat(self):
+        vec = np.array([[1, 1, 1]])
+        self.assertRaises(ValueError, mat.check_3d_vec, vec)
+
+    def testCheck3dVec2(self):
+        vec = np.array([1, 1])
+        self.assertRaises(ValueError, mat.check_3d_vec, vec)
+
+    def testToFloat(self):
+        vec = np.array([1, 1], dtype=np.int32)
+        vec = mat.to_float(vec)
+        self.assertEquals(vec.dtype, np.float)
+
     def assertListFloatEqual(self, list1, list2):
             if not len(list1) == len(list2):
                 raise AssertionError("Lists differ in lenght. Cannot be equal")
