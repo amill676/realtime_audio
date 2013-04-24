@@ -35,8 +35,8 @@ class CameraConverter(object):
         if abs(dot_prod) > 1:  # Small floating point errors can give domain erros in acos
             dot_prod = mat.sign(dot_prod)
         tilt = math.acos(dot_prod)
-        tilt = 90 - mat.to_degrees(tilt)  # Now 0 corresponds to x-y plane, 90 to -z
-        return max(tilt, MIN_TILT_DEGREE + TILT_CENTER_DEGREE)  # Cannot go above 25 degrees
+        tilt = mat.to_degrees(tilt) - 90  # Now 0 corresponds to x-y plane, -90 to -z
+        return min(tilt, MAX_TILT_DEGREE)  # Cannot go above 25 degrees
 
     def get_pan(self, direction):
         """
@@ -63,7 +63,7 @@ class CameraConverter(object):
         if abs(dot_prod) > 1:  # Small floating point errors can give domain erros in acos
             dot_prod = mat.sign(dot_prod)
         pan = math.acos(dot_prod)  # x.dot(dir) = cos(pan)
-        pan = min(mat.to_degrees(pan), MAX_PAN_DEGREE / 2)
+        pan = min(mat.to_degrees(pan), MAX_PAN_DEGREE)
         # Determine whether should be in [0, pi] or [0, -pi]
         y = np.array([0, 1, 0])
         pan *= mat.sign(y.dot(direction))

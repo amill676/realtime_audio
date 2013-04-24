@@ -68,17 +68,17 @@ class CameraConverterTest(unittest.TestCase):
     def testTilt45(self):
         direc = np.array([1, 0, -1])
         tilt = self._conv.get_tilt(direc)
-        self.assertLessEqual(abs(tilt - 45), 1e-9)
+        self.assertLessEqual(abs(tilt + 45), 1e-9)
 
     def testTilt90(self):
         direc = np.array([0, 0, -1])
         tilt = self._conv.get_tilt(direc)
-        self.assertEquals(90, tilt)
+        self.assertEquals(-90, tilt)
 
     def testOverTilt(self):
         direc = np.array([0, 0, 1])
         tilt = self._conv.get_tilt(direc)
-        self.assertEquals(-25, tilt)
+        self.assertEquals(25, tilt)
 
     def testPanX2(self):
         direction = self._forward2
@@ -118,17 +118,17 @@ class CameraConverterTest(unittest.TestCase):
     def testTiltAngle2(self):
         direc = np.array([1, 1, 0])
         tilt = self._conv2.get_tilt(direc)
-        self.assertLessEqual(abs(tilt - 35.2644), 1e-3)
+        self.assertLessEqual(abs(tilt + 35.2644), 1e-3)
 
     def testTilt902(self):
         direc = np.array([1, 1, -2])
         tilt = self._conv2.get_tilt(direc)
-        self.assertEquals(90, tilt)
+        self.assertEquals(-90, tilt)
 
     def testOverTilt2(self):
         direc = np.array([0, 0, 1])
         tilt = self._conv2.get_tilt(direc)
-        self.assertEquals(-25, tilt)
+        self.assertEquals(25, tilt)
 
     def tearDown(self):
         pass

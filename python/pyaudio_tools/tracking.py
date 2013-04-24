@@ -1,4 +1,4 @@
-__author__ = 'adamjmiller'
+__author__ = 'Adam Miller'
 import pyaudio
 import time
 import numpy as np
@@ -11,8 +11,18 @@ from pa_tools.audiobuffer import AudioBuffer
 from pa_tools.stftmanager import StftManager
 from pa_tools.audiolocalizer import AudioLocalizer
 from pa_tools.distributionlocalizer import DistributionLocalizer
+from searchspace import SearchSpace
+from searchspace import SourcePlane
+from camera import SonyCamera
 
-
+# Camera constants
+IP_ADDR = "172.22.11.130"
+URL = "http://I2CS:i2csmedia@" + str(IP_ADDR)
+DISTANCE_TO_STUDENTS = 12
+DISTANCE_TO_TEACHER = 22
+MIC_LOC = np.array([DISTANCE_TO_TEACHER - 4, 0, -DISTANCE_TO_STUDENTS])
+CAMERA_LOC = np.array([0, 0, 0])
+TRACKING_FREQ = 3
 
 # Setup constants
 SAMPLE_TYPE = pyaudio.paFloat32
@@ -28,20 +38,20 @@ NUM_CHANNELS_OUT = 2
 N_THETA = 20
 N_PHI = N_THETA / 2
 PLOT_CARTES = False
-PLOT_POLAR = True
+PLOT_POLAR = False
 EXTERNAL_PLOT = False
-PLAY_AUDIO = True
+PLAY_AUDIO = False
 TIMEOUT = 1
 # Setup mics
 R = 0.0375
 H = 0.07
 mic_layout = np.array([[0, 0, H],
-     [R, 0, 0],
-     [R*math.cos(math.pi/3), R*math.sin(math.pi/3), 0],
-     [-R*math.cos(math.pi/3), R*math.sin(math.pi/3), 0],
-     [-R, 0, 0],
-     [-R*math.cos(math.pi/3), -R*math.sin(math.pi/3), 0],
-     [R*math.cos(math.pi/3), -R*math.sin(math.pi/3), 0]])
+                       [R, 0, 0],
+                       [R*math.cos(math.pi/3), R*math.sin(math.pi/3), 0],
+                       [-R*math.cos(math.pi/3), R*math.sin(math.pi/3), 0],
+                       [-R, 0, 0],
+                       [-R*math.cos(math.pi/3), -R*math.sin(math.pi/3), 0],
+                       [R*math.cos(math.pi/3), -R*math.sin(math.pi/3), 0]])
 # Track whether we have quit or not
 done = False
 
@@ -124,6 +134,23 @@ def print_dfts(dfts):
 
 
 def localize():
+
+    # Setup search space
+    # x vector points to front of class, -z vector points to floor
+    normal = np.array([1, 0, 0])
+    offset = np.array([DISTANCE_TO_TEACHER, 0, 0])
+    teacher_plane = SourcePlane(normal, offset)
+    normal = np.array([0, 0, 1])
+    offset = np.array([0, 0, -DISTANCE_TO_STUDENTS])
+    student_plane = SourcePlane(normal, offset)
+    space = SearchSpace(MIC_LOC, CAMERA_LOC, [teacher_plane, student_plane])
+
+    # Setup camera
+    forward = np.array([1, 0, 0])
+    above = np.array([0, 0, -1])
+    camera = SonyCamera(URL, forward, above)
+
+
     # Setup pyaudio instances
     pa = pyaudio.PyAudio()
     helper = AudioHelper(pa)
@@ -157,12 +184,12 @@ def localize():
                         input_device_index=int(in_device['index']),
                         stream_callback=read_in_data)
     out_stream = pa.open(rate=SAMPLE_RATE,
-                             channels=NUM_CHANNELS_OUT,
-                             format=SAMPLE_TYPE,
-                             output=True,
-                             frames_per_buffer=FRAMES_PER_BUF,
-                             output_device_index=int(out_device['index']),
-                             stream_callback=write_out_data)
+                         channels=NUM_CHANNELS_OUT,
+                         format=SAMPLE_TYPE,
+                         output=True,
+                         frames_per_buffer=FRAMES_PER_BUF,
+                         output_device_index=int(out_device['index']),
+                         stream_callback=write_out_data)
 
     # Start recording/playing back
     in_stream.start_stream()
@@ -211,6 +238,11 @@ def localize():
                 ind = np.argmax(d)
                 u = 1.5 * direcs[:, ind]  # Direction of arrival
 
+                if count % TRACKING_FREQ == 0:
+                    v = np.array([0, 1, 0])
+                    direc = space.get_camera_dir(v)
+                    camera.face_direction(direc)
+
                 # Take car of plotting
                 if count % 1 == 0:
                     if PLOT_CARTES:
@@ -236,7 +268,7 @@ def localize():
                     # Write out the new, altered data
                     if out_buf.get_available_write() >= WINDOW_LENGTH:
                         out_buf.write_samples(new_data)
-            #time.sleep(.05)
+                        #time.sleep(.05)
     except KeyboardInterrupt:
         print "Program interrupted"
         done = True

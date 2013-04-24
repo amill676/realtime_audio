@@ -1,6 +1,7 @@
 __author__ = 'Adam Miller'
 import urllib
 from cameraconverter import CameraConverter
+from cameraformatter import CameraFormatter
 import mattools as mat
 import sys
 import numpy as np
@@ -28,7 +29,25 @@ class SonyCamera(object):
                       orthogonal to 'above'.
         """
         self._converter = CameraConverter(forward, above)
+        self._formatter = CameraFormatter(url)
         self._url = url
+
+    def face_direction(self, direction):
+        """
+        Turn the camera to face a specific direction
+        :param direction: 3-d vector
+        """
+        v = mat.check_3d_vec(direction)
+        pan = self._converter.get_pan(v)
+        tilt = self._converter.get_tilt(v)
+        command = self._formatter.absolute_pos_command(pan, tilt)
+        print command
+        self._send_command(command)
+
+    def set_pan_tilt(self, pan, tilt):
+        command = self._formatter.absolute_pos_command(pan, tilt)
+        print command
+        self._send_command(command)
 
     def connect(self):
         """
@@ -40,6 +59,17 @@ class SonyCamera(object):
         except IOError:
             return False
         return True
+
+    def _send_command(self, command):
+        """
+        Attempt to send the command. If it fails, a warning will be printed
+        """
+        try:
+            urllib.urlopen(command)
+        except IOError:
+            sys.stderr.write('Failed to send command: %s' % command)
+
+
 
 
 
