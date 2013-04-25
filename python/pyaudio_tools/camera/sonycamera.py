@@ -41,12 +41,10 @@ class SonyCamera(object):
         pan = self._converter.get_pan(v)
         tilt = self._converter.get_tilt(v)
         command = self._formatter.absolute_pos_command(pan, tilt)
-        print command
         self._send_command(command)
 
     def set_pan_tilt(self, pan, tilt):
         command = self._formatter.absolute_pos_command(pan, tilt)
-        print command
         self._send_command(command)
 
     def connect(self):

@@ -1,6 +1,5 @@
 __author__ = 'Adam Miller'
 import pyaudio
-import time
 import numpy as np
 import threading
 import math
@@ -9,20 +8,25 @@ from mpl_toolkits.mplot3d import Axes3D
 from pa_tools.audiohelper import AudioHelper
 from pa_tools.audiobuffer import AudioBuffer
 from pa_tools.stftmanager import StftManager
-from pa_tools.audiolocalizer import AudioLocalizer
 from pa_tools.distributionlocalizer import DistributionLocalizer
 from searchspace import SearchSpace
 from searchspace import SourcePlane
 from camera import SonyCamera
+from camera.info import *
 
 # Camera constants
-IP_ADDR = "172.22.11.130"
-URL = "http://I2CS:i2csmedia@" + str(IP_ADDR)
-DISTANCE_TO_STUDENTS = 12
 DISTANCE_TO_TEACHER = 22
-MIC_LOC = np.array([DISTANCE_TO_TEACHER - 4, 0, -DISTANCE_TO_STUDENTS])
+TEACHER_NORMAL = np.array([1, 0, 0])
+TEACHER_OFFSET = np.array([DISTANCE_TO_TEACHER, 0, 0])
+DISTANCE_TO_STUDENTS = 7
+STUDENT_NORMAL = np.array([0, 0, 1])
+STUDENT_OFFSET = np.array([0, 0, -DISTANCE_TO_STUDENTS])
+#MIC_LOC = np.array([DISTANCE_TO_TEACHER - 4, 0, -DISTANCE_TO_STUDENTS])
+MIC_LOC = np.array([DISTANCE_TO_TEACHER - 5, -4, -DISTANCE_TO_STUDENTS])
 CAMERA_LOC = np.array([0, 0, 0])
-TRACKING_FREQ = 3
+TRACKING_FREQ = 4
+DO_TRACK = True
+PLOT_SPACE = False
 
 # Setup constants
 SAMPLE_TYPE = pyaudio.paFloat32
@@ -38,7 +42,6 @@ NUM_CHANNELS_OUT = 2
 N_THETA = 20
 N_PHI = N_THETA / 2
 PLOT_CARTES = False
-PLOT_POLAR = False
 EXTERNAL_PLOT = False
 PLAY_AUDIO = False
 TIMEOUT = 1
@@ -137,17 +140,13 @@ def localize():
 
     # Setup search space
     # x vector points to front of class, -z vector points to floor
-    normal = np.array([1, 0, 0])
-    offset = np.array([DISTANCE_TO_TEACHER, 0, 0])
-    teacher_plane = SourcePlane(normal, offset)
-    normal = np.array([0, 0, 1])
-    offset = np.array([0, 0, -DISTANCE_TO_STUDENTS])
-    student_plane = SourcePlane(normal, offset)
+    teacher_plane = SourcePlane(TEACHER_NORMAL, TEACHER_OFFSET)
+    student_plane = SourcePlane(STUDENT_NORMAL, STUDENT_OFFSET)
     space = SearchSpace(MIC_LOC, CAMERA_LOC, [teacher_plane, student_plane])
 
     # Setup camera
     forward = np.array([1, 0, 0])
-    above = np.array([0, 0, -1])
+    above = np.array([0, 0, 1])
     camera = SonyCamera(URL, forward, above)
 
 
@@ -205,23 +204,45 @@ def localize():
         ax = fig.add_subplot(111, projection='3d')
         plt.show(block=False)
         scat = []
-    if PLOT_POLAR:
+    if PLOT_SPACE:
         fig = plt.figure()
-        ax = fig.add_axes([.1, .1, .8, .8], projection='polar')
-        ax.set_rlim(0, 1)
+        ax = fig.add_subplot(111, projection='3d')
+        # Setup bounds
+        xlo, xhi = (-5, DISTANCE_TO_TEACHER + 5)
+        ylo, yhi = (-15, 15)
+        zlo, zhi = (-15, 5)
+        # Setup grid
+        nx, ny = (200, 100)
+        x = np.linspace(xlo, xhi, nx)
+        y = np.linspace(ylo, yhi, ny)
+        X, Y = np.meshgrid(x, y)
+        n, m = (STUDENT_NORMAL, STUDENT_OFFSET)
+        TP = (n.dot(m) - n[0] * X - n[1] * Y) / n[2] - 2
+        # Plot markers for mic
+        m = MIC_LOC
+        ax.plot([MIC_LOC[0]], [MIC_LOC[1]], [MIC_LOC[2]], 'r.', markersize=10.)
+        # Plot marker for camera
+        c = CAMERA_LOC
+        ax.plot([CAMERA_LOC[0]], [CAMERA_LOC[1]], [CAMERA_LOC[2]], 'b.', markersize=10.)
+        # Draw lines from camera and mic to source
+        source_loc = np.array([10, 0, 0])
+        source_point, = ax.plot([source_loc[0]], [source_loc[1]], [source_loc[2]], 'black', marker='.', markersize=10.)
+        s = source_loc
+        camera_dir, = ax.plot([c[0], m[0]], [c[1], m[1]], [c[2], m[2]], 'blue')
+        mic_dir, = ax.plot([m[0], m[0]], [m[1], m[1]], [m[2], m[2]], 'red')
+        #ax.plot_surface(X, Y, TP)
+        ax.set_xlim(xlo, xhi)
+        ax.set_ylim(ylo, yhi)
+        ax.set_zlim(zlo, zhi)
+        ax.view_init(elev=25, azim=-120)
         plt.show(block=False)
-        # Setup space for plotting in new coordinates
-        spher_coords = localizer.get_spher_directions()
-        pol = localizer.to_spher_grid(spher_coords[2, :])
-        weight = 1. - .3 * np.sin(2 * pol)  # Used to pull visualization off edges
-        r = np.sin(pol) * weight
-        theta = localizer.to_spher_grid(spher_coords[1, :])
     if EXTERNAL_PLOT:
         fig = plt.figure()
         ax = fig.add_subplot(111)
         plt.show(block=False)
 
     count = 0
+    prev_direc = np.array([0, 0, 0])
     direcs = localizer.get_directions()
     try:
         global done
@@ -238,27 +259,45 @@ def localize():
                 ind = np.argmax(d)
                 u = 1.5 * direcs[:, ind]  # Direction of arrival
 
-                if count % TRACKING_FREQ == 0:
-                    v = np.array([0, 1, 0])
+                if DO_TRACK and count % TRACKING_FREQ == 0:
+                    #v = np.array([1, 0, 1])
+                    v = u
                     direc = space.get_camera_dir(v)
+                    if not direc.any():
+                        direc = prev_direc
+                    else:
+                        prev_direc = direc
+                    # Send camera new direction
                     camera.face_direction(direc)
 
-                # Take car of plotting
+                    if PLOT_SPACE:
+                        if direc.any():
+                            src = space.get_source_loc(u)
+                            source_point.set_xdata([src[0]])
+                            source_point.set_ydata([src[1]])
+                            source_point.set_3d_properties(zs=[src[2]])
+                        cam_src = CAMERA_LOC + 30 * direc
+                        mic_src = MIC_LOC + 30 * u
+                        # Update camera line
+                        camera_dir.set_xdata([CAMERA_LOC[0], cam_src[0]])
+                        camera_dir.set_ydata([CAMERA_LOC[1], cam_src[1]])
+                        camera_dir.set_3d_properties(zs=[CAMERA_LOC[2], cam_src[2]])
+                        # Update mic line
+                        mic_dir.set_xdata([MIC_LOC[0], mic_src[0]])
+                        mic_dir.set_ydata([MIC_LOC[1], mic_src[1]])
+                        mic_dir.set_3d_properties(zs=[MIC_LOC[2], mic_src[2]])
+                        plt.draw()
+
+                # Take care of plotting
                 if count % 1 == 0:
                     if PLOT_CARTES:
                         plt.cla()
-                        ax.scatter(direcs[0, :], direcs[1, :], direcs[2, :], s=30, c=d[3, :])
+                        ax.scatter(direcs[0, :], direcs[1, :], direcs[2, :], s=30, c=d[:])
                         ax.plot([0, u[0]], [0, u[1]], [0, u[2]], c='blue')
                         ax.set_xlim(-1, 1)
                         ax.set_ylim(-1, 1)
                         ax.set_zlim(0, 1)
                         plt.draw()
-                    if PLOT_POLAR:
-                        plt.cla()
-                        d = localizer.to_spher_grid(d)
-                        con = ax.contourf(theta, r, d, vmin=0, vmax=40)
-                        con.set_cmap('gist_heat')
-                        fig.canvas.draw()
                 count += 1
 
                 # Get the istft of the processed data

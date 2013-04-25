@@ -36,8 +36,6 @@ class SourcePlane(object):
         """
         lin_offset = tools.check_3d_vec(offset)
         grad = tools.check_3d_vec(grad)
-        print grad
-        print self._normal
         # Check if line and plane are parallel
         if abs(np.max(grad.dot(self._normal))) < 1e-9:
             return None

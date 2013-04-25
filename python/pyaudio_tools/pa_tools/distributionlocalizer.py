@@ -51,7 +51,8 @@ class DistributionLocalizer(AudioLocalizer):
         #ffts *= self._lpf_H  # LPF incoming audio
         ffts[:, self._cutoff_index:-self._cutoff_index + 1] = 0
         auto_corr = ffts[0, :] * ffts[1:, :].conjugate()
-        auto_corr /= (np.abs(ffts[0, :]) + consts.EPS)
+        #auto_corr /= (np.abs(ffts[0, :]) + consts.EPS)
+        auto_corr /= (np.abs(auto_corr + consts.EPS))
         # For some reason, 'whitening' both sources causes problems (underflow?)
         #auto_corr /= (np.abs(ffts[0, :]) * np.abs(ffts[1:, :]))
         # Get correlation values
@@ -61,7 +62,7 @@ class DistributionLocalizer(AudioLocalizer):
             corrs[:, i] = np.real(np.sum(shifted, axis=1))  # idft for n = 0
         # Normalize ang get probability for each direction
         distr = np.empty((4, self._n_theta * self._n_phi), dtype=consts.REAL_DTYPE)
-        distr = np.maximum(np.prod(corrs, axis=0), consts.EPS)
+        distr = np.maximum(np.sum(corrs, axis=0), consts.EPS)
         #distr[3, :] = np.log(distr[3, :])
         #distr[3, :] -= np.log(1.e14)
         return distr
@@ -70,13 +71,14 @@ class DistributionLocalizer(AudioLocalizer):
         cutoff_index = (self.CUTOFF_FREQ / self._sample_rate) * (self._dft_len / 2)
         lowffts = rffts[:, :cutoff_index]  # Low pass filtered
         auto_corr = lowffts[0, :] * lowffts[1:, :].conjugate()
-        auto_corr /= (np.abs(lowffts[0, :]) + consts.EPS)
+        auto_corr /= (np.abs(auto_corr) + consts.EPS)
+        #auto_corr /= (np.abs(lowffts[0, :]) + consts.EPS)
         # Get correlation values from time domain
         corrs = np.zeros((self._n_mics - 1, self._n_theta * self._n_phi), dtype=consts.REAL_DTYPE)
         for i in range(corrs.shape[1]):
             shifted = auto_corr * self._lp_pos_shift_mats[:, :, i]
             corrs[:, i] = np.real(shifted[:, 0] + 2 * np.sum(shifted[:, 1:], axis=1))  # ifft for n = 0
-        distr = np.maximum(np.prod(corrs, axis=0), consts.EPS)
+        distr = np.maximum(np.sum(corrs, axis=0), consts.EPS)
         return distr
 
     def get_3d_real_distribution(self, dfts):

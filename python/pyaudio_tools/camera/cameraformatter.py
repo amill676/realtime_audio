@@ -22,14 +22,10 @@ class CameraFormatter(object):
         pan_speed = self._check_bounds(float(pan_speed), MIN_PAN_SPEED, MAX_PAN_SPEED)
         tilt_speed = self._check_bounds(float(tilt_speed), MIN_TILT_SPEED, MAX_TILT_SPEED)
 
-        print pan
-        print tilt
 
         # Get hex values for angles
         pan_hex = self.get_pan_hex(pan)
-        print pan_hex
         tilt_hex = self.get_tilt_hex(tilt)
-        print self._hex_to_string(pan_hex)
 
         # Create formatted string
         return "%s%s%s%02x%02x%s%sFF" % (self._url, VISCA_COMMAND_STR, ABSOLUTE_POS_STR,
@@ -43,7 +39,6 @@ class CameraFormatter(object):
         :returns: tilt value in hex
         """
         tilt = self._check_tilt(tilt)
-        print tilt
         # Note that as degrees become negative, hex will increase
         val = MIN_TILT_HEX + (tilt - MIN_TILT_DEGREE) * \
                (MAX_TILT_HEX - MIN_TILT_HEX) / (MAX_TILT_DEGREE - MIN_TILT_DEGREE)

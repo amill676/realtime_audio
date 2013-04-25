@@ -76,7 +76,7 @@ class BeamFormer(object):
         #               "as the space in which the microphones are located")
         return np.ones((self._n_mics,)) / self._n_mics  # Delay and sum filter
 
-    def get_beam(self, align_mat, align_mats, freq):
+    def get_beam(self, align_mat, align_mats, rffts, freq):
         """
         Return the spatial filter magnitude response for a given frequency
         corresponding to a source from a direction that will result in the
@@ -96,7 +96,13 @@ class BeamFormer(object):
         freq_ind = int((freq / self._sample_rate) * (pos_dft_len - 1) * 2)
         h = self.get_filter() * align_mat[:, freq_ind].conj()
         response = align_mats[:, freq_ind, :]
-        return np.abs(h.dot(response))
+        # Get first windowed portion at correct frequency
+        rfft = np.tile(rffts[:, freq_ind, 0], (response.shape[1], 1)).T
+        shifted = response * rfft
+        response = h.dot(shifted)
+        return np.log(1 + np.abs(response))
+        #return response * response.conj()
+        #return np.abs(response)
 
 
 

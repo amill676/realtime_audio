@@ -6,6 +6,7 @@ import math
 
 import pyaudio
 import numpy as np
+from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
 import pa_tools.constants as consts
@@ -28,12 +29,12 @@ WINDOW_LENGTH = FFT_LENGTH
 HOP_LENGTH = WINDOW_LENGTH / 2
 NUM_CHANNELS_IN = 7
 NUM_CHANNELS_OUT = 1
-N_THETA = 30
-N_PHI = N_THETA * 1 / 2 # 3 / 4
-PLOT_CARTES = False
-PLOT_POLAR = True
+N_THETA = 20
+N_PHI = N_THETA * 1 / 2  # 3 / 4
+PLOT_CARTES = True
+PLOT_POLAR = False
 EXTERNAL_PLOT = False
-PLAY_AUDIO = True
+PLAY_AUDIO = False
 DO_BEAMFORM = True
 RECORD_AUDIO = False
 OUTFILE_NAME = 'nonbeamformed.wav'
@@ -271,8 +272,8 @@ def localize():
                     mat.set_dfts_real(dfts, filtered, n_channels=2)
 
                     # Get beam plot
-                    freq = 6000.  # Hz
-                    response = beamformer.get_beam(align_mat, align_mats, freq)
+                    freq = 1000.  # Hz
+                    response = beamformer.get_beam(align_mat, align_mats, rffts, freq)
                     response = localizer.to_spher_grid(response)
 
                 # Take car of plotting

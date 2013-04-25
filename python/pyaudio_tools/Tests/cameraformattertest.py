@@ -18,12 +18,12 @@ class CameraFormatterTest(unittest.TestCase):
     def testPanHexMax(self):
         pan = 170
         pan_hex = self.form.get_pan_hex(pan)
-        self.assertEquals(pan_hex, MAX_PAN_HEX)
+        self.assertEquals(pan_hex, -MAX_PAN_HEX)
 
     def testPanHexMin(self):
         pan = -170
         pan_hex = self.form.get_pan_hex(pan)
-        self.assertEquals(pan_hex, MIN_PAN_HEX)
+        self.assertEquals(pan_hex, -MIN_PAN_HEX)
 
     def testTilt90(self):
         tilt = -90
