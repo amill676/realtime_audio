@@ -245,7 +245,9 @@ def localize():
                 # Process dfts from windowed segments of input
                 dfts = stft.getDFTs()
                 rffts = mat.to_all_real_matlab_format(dfts)
-                d = localizer.get_distribution_real(rffts[:, :, 0]) # Use first hop
+                d = localizer.get_distribution_real(rffts[:, :, 0], 'mcc') # Use first hop
+                print d
+                print "SIZE: " + str(d.shape)
                 ind = np.argmax(d)
                 u = 1.5 * direcs[:, ind]  # Direction of arrival
 
@@ -258,6 +260,7 @@ def localize():
                 # Take care of plotting
                 if count % 1 == 0:
                     if PLOT_POLAR:
+                        d -= np.min(d)
                         d = localizer.to_spher_grid(d)
                         d /= np.max(d)
                         pol_plot.set_ydata(d[0, :])

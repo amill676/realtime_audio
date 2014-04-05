@@ -31,8 +31,8 @@ NUM_CHANNELS_IN = 7
 NUM_CHANNELS_OUT = 1
 N_THETA = 20
 N_PHI = N_THETA * 1 / 2  # 3 / 4
-PLOT_CARTES = True
-PLOT_POLAR = False
+PLOT_CARTES = False
+PLOT_POLAR = True
 EXTERNAL_PLOT = False
 PLAY_AUDIO = False
 DO_BEAMFORM = True
@@ -270,6 +270,10 @@ def localize():
                     align_mat = align_mats[:, :, ind]
                     filtered = beamformer.filter_real(rffts, align_mat)
                     mat.set_dfts_real(dfts, filtered, n_channels=2)
+                    # Get beam plot
+                    freq = 1500.  # Hz
+                    response = beamformer.get_beam(align_mat, align_mats, rffts, freq)
+                    response = localizer.to_spher_grid(response)
 
 
                 # Take car of plotting
@@ -282,10 +286,6 @@ def localize():
                         #ax.plot_surface(x, y, z, rstride=1, cstride=1, facecolor=plt.cm.gist_heat(d))
                         ax.plot([0, u[0]], [0, u[1]], [0, u[2]], c='black', linewidth=3)
                         if DO_BEAMFORM:
-                            # Get beam plot
-                            freq = 1500.  # Hz
-                            response = beamformer.get_beam(align_mat, align_mats, rffts, freq)
-                            response = localizer.to_spher_grid(response)
                             if np.max(np.abs(response)) > 1:
                                 response /= np.max(np.abs(response))
                             X = response * x

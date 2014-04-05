@@ -43,15 +43,6 @@ class DistributionLocalizer(AudioLocalizer):
         Get probability distribution of source location
         :param ffts:
         """
-        #energies = ffts * ffts.conjugate()
-        #THRESHOLD = 180
-        #energies = np.sum(energies, axis=1)
-        #total_energy = np.sum(energies)
-        #if total_energy < THRESHOLD:
-        #    return self._prev_distr
-        #if self._dft_len != ffts.shape[1]:
-        #    raise ValueError("DFT's given do not have same size as that specified at construction")
-        #ffts *= self._lpf_H  # LPF incoming audio
         ffts[:, self._cutoff_index:-self._cutoff_index + 1] = 0
         auto_corr = ffts[0, :] * ffts[1:, :].conjugate()
         #auto_corr /= (np.abs(ffts[0, :]) + consts.EPS)
@@ -70,18 +61,67 @@ class DistributionLocalizer(AudioLocalizer):
         #distr[3, :] -= np.log(1.e14)
         return distr
 
-    def get_distribution_real(self, rffts):
-        cutoff_index = (self.CUTOFF_FREQ / self._sample_rate) * (self._dft_len / 2)
+    def get_distribution_real(self, rffts, method='gcc'):
+        """
+        Get the posterior distribution of source locations over the search space
+        given observed ffts. There are a few different methods for doing so. These
+        strings can be passed in as the 'method' argument.
+
+        :param rffts: positive half of the observed rffts
+        :param method: method for computing the distribution. There are few options:
+            'gcc': Use the Generalized Cross Correlation Method
+            'beamform': Use the energy of a delay and sum beamform
+        """
+        if method == 'gcc':
+            return self._get_distribution_gcc(rffts)
+        if method == 'mcc':
+            return self._get_distribution_mcc(rffts)
+
+    def _get_distribution_gcc(self, rffts):
+        cutoff_index = self._compute_cutoff_index()
         lowffts = rffts[:, :cutoff_index]  # Low pass filtered
         auto_corr = lowffts[0, :] * lowffts[1:, :].conjugate()
         auto_corr /= (np.abs(auto_corr) + consts.EPS)
         #auto_corr /= (np.abs(lowffts[0, :]) + consts.EPS)
         # Get correlation values from time domain
         corrs = np.zeros((self._n_mics - 1, self._n_theta * self._n_phi), dtype=consts.REAL_DTYPE)
-        for i in range(corrs.shape[1]):
-            shifted = auto_corr * self._lp_pos_shift_mats[:, :, i]
-            corrs[:, i] = np.real(shifted[:, 0] + 2 * np.sum(shifted[:, 1:], axis=1))  # ifft for n = 0
+        if cutoff_index < self._dft_len/2. + 1:
+            for i in range(corrs.shape[1]):
+                shifted = auto_corr * self._lp_pos_shift_mats[:, :, i]
+                corrs[:, i] = np.real(shifted[:, 0] + 2 * np.sum(shifted[:, 1:], axis=1))  # ifft for n = 0
+        else:
+            for i in range(corrs.shape[1]):
+                shifted = auto_corr * self._lp_pos_shift_mats[:, :, i]
+                corrs[:, i] = np.real(shifted[:, 0] + 2 * np.sum(shifted[:, 1:-1], axis=1) + shifted[:, -1])  # ifft for n = 0
         distr = np.maximum(np.sum(corrs, axis=0), consts.EPS)
+        return distr
+
+    def _get_distribution_mcc(self, rffts):
+        cutoff_index = self._compute_cutoff_index()
+        lowffts = rffts[:, :cutoff_index]  # Low pass filtered
+        auto_corr = np.empty((self._n_mic_pairs, cutoff_index), 
+                        dtype=consts.COMPLEX_DTYPE)
+        curr_ind = 0
+        for i in range(1, self._n_mics):
+            auto_corr[curr_ind:curr_ind + self._n_mics-i, :] = \
+                lowffts[i-1, :] * lowffts[i:, :].conjugate()
+            curr_ind += self._n_mics-i
+        auto_corr /= (np.abs(auto_corr) + consts.EPS)
+        corrs = np.zeros((self._n_mic_pairs, self._n_theta * self._n_phi),
+                            dtype=consts.REAL_DTYPE)
+        if cutoff_index < self._dft_len/2. + 1:
+            for i in range(self._n_theta * self._n_phi):
+                shifted = auto_corr * self._all_lp_pos_shift_mats[:, :, i]
+                corrs[:, i] = np.real(shifted[:, 0] + 2 * np.sum(shifted[:, 1:], axis=1))  # ifft for n = 0
+        else:
+            for i in range(self._n_theta * self._n_phi):
+                shifted = auto_corr * self._all_lp_pos_shift_mats[:, :, i]
+                corrs[:, i] = np.real(shifted[:, 0] + 2 * np.sum(shifted[:, 1:-1], axis=1) + shifted[:, -1])  # ifft for n = 0
+        distr = np.maximum(np.sum(corrs, axis=0), consts.EPS) # Replace zeros with EPS
+        if np.any(np.isnan(distr)):
+            print "NAN"
+            print corrs
+            print auto_corr
         return distr
 
     def get_3d_real_distribution(self, dfts):
@@ -153,17 +193,20 @@ class DistributionLocalizer(AudioLocalizer):
     def _process_mic_positions(self, mic_positions):
         mic_shape = mic_positions.shape
         self._n_mics = mic_shape[0]
+        self._n_mic_pairs = (self._n_mics - 1) * self._n_mics / 2
         self._n_dimensions = mic_shape[1]
         if self._n_dimensions == 2:
             if self._n_phi != 1:
                 ValueError("Number of phi search space samples must be 1 for " +
                            "microphone coordinates in 2 dimensions")
-            self._mic_positions = np.concatenate((mic_positions.copy(), np.zeros((self._n_mics,1))), axis=1)
+            self._mic_positions = np.concatenate((mic_positions.copy(), 
+                                    np.zeros((self._n_mics,1))), axis=1)
             self._n_dimensions = 3
         elif self._n_dimensions == 3:
             self._mic_positions = mic_positions.copy()
         else:
             ValueError("Microphones must be specified in either 2 or 3 dimensions")
+            
 
     def _setup_distances(self):
         """
@@ -171,6 +214,14 @@ class DistributionLocalizer(AudioLocalizer):
         layout given for this object
         """
         self._distances = self._mic_positions[1:, :] - self._mic_positions[0, :]
+        # Now setup all mic distances for more exhaustive algorithms
+        self._all_distances = np.empty(((self._n_mics - 1) * self._n_mics / 2, self._mic_positions.shape[1]))
+        curr_ind = 0
+        for i in range(1, self._n_mics):
+            self._all_distances[curr_ind:curr_ind + self._n_mics-i, :] = \
+                self._mic_positions[i:, :] - self._mic_positions[i-1, :]
+            curr_ind += self._n_mics - i
+            
 
     def _setup_search_space(self):
         """
@@ -205,25 +256,20 @@ class DistributionLocalizer(AudioLocalizer):
 
     def _setup_freq_spaces(self):
         # Setup delays between first mic and all others
-        self._delays = -1 * self._distances.dot(self._directions) * self._sample_rate / consts.SPEED_OF_SOUND
+        self._delays = -1 * self._distances.dot(self._directions) * \
+                            self._sample_rate / consts.SPEED_OF_SOUND
+        # Setup delays between all unique pairs of mics
+        self._all_delays = -1 * self._all_distances.dot(self._directions) * \
+                                self._sample_rate / consts.SPEED_OF_SOUND
         # Setup the various shift matrices
         self._setup_shift_mats()
         self._setup_pos_shift_mats()
         self._setup_lp_pos_shift_mats()
         # Store previous distribution for when signal energy is very low
-        self._prev_distr = np.zeros((4, self._n_phi * self._n_theta), dtype=consts.REAL_DTYPE)
+        self._prev_distr = \
+            np.zeros((4, self._n_phi * self._n_theta), dtype=consts.REAL_DTYPE)
         self._prev_distr[:3, :] = self._directions
 
-    def _setup_lp_pos_shift_mats(self):
-        self._cutoff_index = self._compute_cutoff_index()
-        self._lp_pos_shift_mats = np.empty((self._n_mics - 1, self._cutoff_index, self._n_theta * self._n_phi),
-                                           dtype=consts.COMPLEX_DTYPE)
-        nn = np.arange(0, self._cutoff_index, dtype=consts.REAL_DTYPE)
-        if self._cutoff_index == self._dft_len / 2 + 1:
-            nn[-1] *= -1  # Last entry is for -(dft_len / 2)
-        for i in range(self._lp_pos_shift_mats.shape[2]):
-            freqs = np.outer(self._delays[:, i], nn)
-            self._lp_pos_shift_mats[:, :, i] = np.exp(-1j * 2 * math.pi * freqs / self._dft_len)
 
     def _compute_cutoff_index(self):
         """
@@ -232,10 +278,23 @@ class DistributionLocalizer(AudioLocalizer):
         up to this cutoff index should be used in localization
         :returns: cutoff index as described. Will be of int type
         """
-        cutoff_index = int((float(self.CUTOFF_FREQ) / self._sample_rate) * (self._dft_len / 2))
+        cutoff_index = int((float(self.CUTOFF_FREQ) / self._sample_rate) * 
+                       (self._dft_len / 2))
         if cutoff_index > self._dft_len / 2 + 1:
             cutoff_index = int(self._dft_len / 2 + 1)
         return cutoff_index
+            
+    def _setup_lp_pos_shift_mats(self):
+        """
+        Setup matrix that can be used to shift ffts to delays corresponding
+        with the search space. This will use only the positive frequencies
+        and will low pass filter the DFT using the frequency specified.
+        """
+        self._cutoff_index = self._compute_cutoff_index()
+        self._lp_pos_shift_mats = \
+            self._get_shifts_from_delays(self._delays, self._cutoff_index)
+        self._all_lp_pos_shift_mats = \
+            self._get_shifts_from_delays(self._all_delays, self._cutoff_index)
 
     def _setup_pos_shift_mats(self):
         """
@@ -243,23 +302,48 @@ class DistributionLocalizer(AudioLocalizer):
         with the search space. This will use only the positive frequencies
         and negative nyquist frequency
         """
-        self._pos_shift_mats = np.empty(
-            (self._n_mics - 1, self._dft_len / 2 + 1, self._n_theta * self._n_phi),
-            dtype=consts.COMPLEX_DTYPE)
-        nn = np.arange(0, self._dft_len / 2 + 1)
-        nn[-1] *= -1  # Negative nyquist freq
-        for i in range(self._pos_shift_mats.shape[2]):
-            freqs = np.outer(self._delays[:, i], nn)
-            self._pos_shift_mats[:, :, i] = np.exp(-1j * 2 * math.pi * freqs / self._dft_len)
+        self._pos_shift_mats = \
+            self._get_shifts_from_delays(self._delays, self._dft_len/2. + 1)
 
     def _setup_shift_mats(self):
-        self._shift_mats = np.empty((self._n_mics - 1, self._dft_len, self._n_theta * self._n_phi),
+        """
+        Setup matrix that can be used to shift ffts to delays corresponding
+        with the search space. 
+        """
+        self._shift_mats = self._get_shifts_from_delays(self._delays)
+
+    def _get_shifts_from_delays(self, delays, dft_coeff_n=None):
+        """
+        Compute matrix of multiplicative factors used to shift fourier 
+        transforms of signals, using provided delays. These will use
+        the delay in teh phase term
+        :param delays: Matrix of delays for each search direciton. Entry (i,j)
+                       contains the sample delay amount to align mic pair
+                       i for search direction j
+        :param dft_coeff_n: Number of first DFT coefficients to keep.
+                           To use only the positive frequencies in
+                           the DFT's, this should be dft_len/2+1. It is also
+                           possible to use this argument to enforce a LPF on
+                           the DFT
+        :returns: shift martrix where entry (i,j,k) is the multiplicative factor
+                  in the fourier domain to align mic-pair i at frequency j for
+                  search direction k
+        """
+        if dft_coeff_n is None:
+            dft_coeff_n = self._dft_len
+        # Avoid problems with dft_coeff_n values that don't make sense
+        if dft_coeff_n > self._dft_len/2. + 1 and dft_coeff_n != self._dft_len:
+            raise ValueError("If dft_coeff_n is not DFT_LEN it must be \
+                              at most DFT_LEN/2 + 1")
+        shift_mats = np.empty((delays.shape[0], dft_coeff_n, self._n_theta * self._n_phi),
                                     dtype=consts.COMPLEX_DTYPE)
         nn = np.hstack((np.arange(0, self._dft_len / 2, dtype=consts.REAL_DTYPE),
                         np.arange(-self._dft_len / 2, 0, dtype=consts.REAL_DTYPE)))
-        for i in range(self._shift_mats.shape[2]):
-            freqs = np.outer(self._delays[:, i], nn)
-            self._shift_mats[:, :, i] = np.exp(-1j * 2 * math.pi * freqs / self._dft_len)
+        nn = nn[:dft_coeff_n] # Use first dft_coeff_n coefficients
+        for i in range(shift_mats.shape[2]):
+            freqs = np.outer(delays[:, i], nn)
+            shift_mats[:, :, i] = np.exp(-1j * 2 * math.pi * freqs / self._dft_len)
+        return shift_mats
 
 
 
