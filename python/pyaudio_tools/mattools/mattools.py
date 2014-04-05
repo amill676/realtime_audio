@@ -104,10 +104,22 @@ def to_real_matlab_format(dfts):
     return dft_arr
 
 def to_all_real_matlab_format(dfts):
+    """
+    Converts list in format of getDFTs() output to matlab format dfts
+    using only the positive frequencies and nyquist frequency. Will
+    return one for each "hop" given in the input.
+
+    Each row corresponds to an input channel, and contains a list of
+    positive DFTs (with all values, complex) for the data contained in the
+    entry corresponding to that channel in dfts, with each entry in the list
+    corresponding to the associated hop in the input list
+    
+    :param dfts: list of tuples containg list of real/imag lists
+    :return: np.ndarray
+    """
     half_dft_len = len(dfts[0][0][0]) + 1
     num_chan = len(dfts)
     num_hops = len(dfts[0][0])
-    #dft_arr = np.empty((num_chan, half_dft_len, num_hops), dtype=consts.COMPLEX_DTYPE)
     dft_arr = np.empty((num_chan, half_dft_len, num_hops), dtype=consts.COMPLEX_DTYPE)
     for i in range(num_chan):
         for k in range(num_hops):

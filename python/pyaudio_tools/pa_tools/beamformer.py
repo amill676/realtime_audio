@@ -94,15 +94,15 @@ class BeamFormer(object):
         """
         pos_dft_len = align_mat.shape[1]
         freq_ind = int((freq / self._sample_rate) * (pos_dft_len - 1) * 2)
-        h = self.get_filter() * align_mat[:, freq_ind].conj()
-        response = align_mats[:, freq_ind, :]
+        h = self.get_filter() #* align_mat[:, freq_ind]
+        response = align_mats[:, freq_ind, :].conj()
         # Get first windowed portion at correct frequency
         rfft = np.tile(rffts[:, freq_ind, 0], (response.shape[1], 1)).T
         shifted = response * rfft
         response = h.dot(shifted)
-        return np.log(1 + np.abs(response))
+        #return np.log(1 + np.abs(response))
         #return response * response.conj()
-        #return np.abs(response)
+        return np.abs(response)
 
 
 

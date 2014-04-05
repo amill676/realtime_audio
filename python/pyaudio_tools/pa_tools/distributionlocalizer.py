@@ -9,7 +9,7 @@ import sys
 
 class DistributionLocalizer(AudioLocalizer):
 
-    def __init__(self, mic_positions, dft_len=512, sample_rate=44100, n_theta=20, n_phi=20):
+    def __init__(self, mic_positions, dft_len=512, sample_rate=44100, n_theta=20, n_phi=1):
         """
         :param mic_positions: locations of microphones. Each row should be the
                             location of a given microphone. The dimension
@@ -21,13 +21,16 @@ class DistributionLocalizer(AudioLocalizer):
         :param n_theta: The number of points to sample in theta search
                         space where theta is angle in spherical coordinates
         :type n_theta: int
+        :param n_phi: The number of points to sample in phi search space
+                      where phi is the polar angle in spherical coordinates. The
+                      default value is 1, which indicates a 2d search space
+        :type n_phi: int
         """
         AudioLocalizer.__init__(self, mic_positions, dft_len=dft_len, sample_rate=sample_rate)
         self._n_theta = n_theta
         self._n_phi = n_phi
         if mic_positions is not None:
-            self._mic_positions = mic_positions.copy()
-            self._process_mic_positions()
+            self._process_mic_positions(mic_positions)
             self._setup_distances()
             self._setup_search_space()
             self._setup_freq_spaces()
@@ -147,11 +150,20 @@ class DistributionLocalizer(AudioLocalizer):
         mic0_shifts = np.ones((1, self._dft_len / 2 + 1, self._n_theta * self._n_phi))
         return np.vstack((mic0_shifts, sm_copy))
 
-    def _process_mic_positions(self):
-        self._n_mics = self._mic_positions.shape[0]
-        self._n_dimensions = self._mic_positions.shape[1]
-        if self._n_dimensions != 3:
-            ValueError("Microphones must be specified in 3 dimensions")
+    def _process_mic_positions(self, mic_positions):
+        mic_shape = mic_positions.shape
+        self._n_mics = mic_shape[0]
+        self._n_dimensions = mic_shape[1]
+        if self._n_dimensions == 2:
+            if self._n_phi != 1:
+                ValueError("Number of phi search space samples must be 1 for " +
+                           "microphone coordinates in 2 dimensions")
+            self._mic_positions = np.concatenate((mic_positions.copy(), np.zeros((self._n_mics,1))), axis=1)
+            self._n_dimensions = 3
+        elif self._n_dimensions == 3:
+            self._mic_positions = mic_positions.copy()
+        else:
+            ValueError("Microphones must be specified in either 2 or 3 dimensions")
 
     def _setup_distances(self):
         """
@@ -169,9 +181,12 @@ class DistributionLocalizer(AudioLocalizer):
         every other microphone. Note that these sample delays may be non-integers.
         """
         # Setup angle space
-        theta = np.linspace(0, 2 * math.pi, self._n_theta)
+        if self._n_phi == 1: # 2d search space
+            theta = np.linspace(0, math.pi, self._n_theta)
+        else:
+            theta = np.linspace(0, 2 * math.pi, self._n_theta)
         #theta = theta[:-1]  # Don't use both 0 and 2pi
-        phi = np.linspace(0, math.pi / 2, self._n_phi)
+        phi = np.linspace(math.pi/2., 0, self._n_phi)[::-1] # Want to include pi/2 if self._n_phi == 1
 
         # Setup array of direction vectors
         self._directions = np.empty((3, self._n_theta * self._n_phi), dtype=consts.REAL_DTYPE)

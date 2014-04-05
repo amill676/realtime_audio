@@ -27,12 +27,11 @@ FRAMES_PER_BUF = 4096  # For 44100 Fs, be careful going over 4096, loud sounds m
 FFT_LENGTH = FRAMES_PER_BUF
 WINDOW_LENGTH = FFT_LENGTH
 HOP_LENGTH = WINDOW_LENGTH / 2
-NUM_CHANNELS_IN = 7
+NUM_CHANNELS_IN = 4
 NUM_CHANNELS_OUT = 1
 N_THETA = 20
-N_PHI = N_THETA * 1 / 2  # 3 / 4
-PLOT_CARTES = True
-PLOT_POLAR = False
+N_PHI = 1
+PLOT_POLAR = True
 EXTERNAL_PLOT = False
 PLAY_AUDIO = False
 DO_BEAMFORM = True
@@ -40,15 +39,7 @@ RECORD_AUDIO = False
 OUTFILE_NAME = 'nonbeamformed.wav'
 TIMEOUT = 1
 # Setup mics
-R = 0.0375
-H = 0.07
-mic_layout = np.array([[0, 0, H],
-                       [R, 0, 0],
-                       [R*math.cos(math.pi/3), R*math.sin(math.pi/3), 0],
-                       [-R*math.cos(math.pi/3), R*math.sin(math.pi/3), 0],
-                       [-R, 0, 0],
-                       [-R*math.cos(math.pi/3), -R*math.sin(math.pi/3), 0],
-                       [R*math.cos(math.pi/3), -R*math.sin(math.pi/3), 0]])
+mic_layout = np.array([[.03, 0], [-.01, 0], [.01, 0], [-.03, 0]])
 # Track whether we have quit or not
 done = False
 switch_beamforming = False  # Switch beamforming from on to off or off to on
@@ -221,25 +212,18 @@ def localize():
     align_mats = localizer.get_pos_align_mat()
 
     # Plotting setup
-    if PLOT_CARTES:
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        plt.show(block=False)
-        x = localizer.to_spher_grid(direcs[0, :])
-        y = localizer.to_spher_grid(direcs[1, :])
-        z = localizer.to_spher_grid(direcs[2, :])
-        #scat = ax.scatter(x, y, z, s=100)
     if PLOT_POLAR:
         fig = plt.figure()
-        ax = fig.add_axes([.1, .1, .8, .8], projection='polar')
+        ax = fig.add_subplot(111, projection='polar')
         ax.set_rlim(0, 1)
         plt.show(block=False)
         # Setup space for plotting in new coordinates
         spher_coords = localizer.get_spher_directions()
-        pol = localizer.to_spher_grid(spher_coords[2, :])
-        weight = 1. - .3 * np.sin(2 * pol)  # Used to pull visualization off edges
-        r = np.sin(pol) * weight
-        theta = localizer.to_spher_grid(spher_coords[1, :])
+        theta = spher_coords[1, :]
+        pol_plot, = plt.plot(theta, np.ones(theta.shape))
+        ax.set_ylim(0, 1)
+        if DO_BEAMFORM:
+            pol_beam_plot, = plt.plot(theta, np.ones(theta.shape), 'red')
     if EXTERNAL_PLOT:
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -254,14 +238,14 @@ def localize():
                 if switch_beamforming:
                     DO_BEAMFORM = not DO_BEAMFORM
                     switch_beamforming = False
-                # Get data from the circular buffer
+                    # Get data from the circular buffer
                 data = in_buf.read_samples(WINDOW_LENGTH)
                 # Perform an stft
                 stft.performStft(data)
                 # Process dfts from windowed segments of input
                 dfts = stft.getDFTs()
                 rffts = mat.to_all_real_matlab_format(dfts)
-                d = localizer.get_distribution_real(rffts[:, :, 0])
+                d = localizer.get_distribution_real(rffts[:, :, 0]) # Use first hop
                 ind = np.argmax(d)
                 u = 1.5 * direcs[:, ind]  # Direction of arrival
 
@@ -271,42 +255,21 @@ def localize():
                     filtered = beamformer.filter_real(rffts, align_mat)
                     mat.set_dfts_real(dfts, filtered, n_channels=2)
 
-
-                # Take car of plotting
+                # Take care of plotting
                 if count % 1 == 0:
-                    if PLOT_CARTES:
-                        ax.cla()
-                        ax.grid(False)
-                        d = localizer.to_spher_grid(d / (np.max(d) + consts.EPS))
-                        ax.scatter(x, y, z, c=d, s=40)
-                        #ax.plot_surface(x, y, z, rstride=1, cstride=1, facecolor=plt.cm.gist_heat(d))
-                        ax.plot([0, u[0]], [0, u[1]], [0, u[2]], c='black', linewidth=3)
+                    if PLOT_POLAR:
+                        d = localizer.to_spher_grid(d)
+                        d /= np.max(d)
+                        pol_plot.set_ydata(d[0, :])
                         if DO_BEAMFORM:
                             # Get beam plot
-                            freq = 1500.  # Hz
+                            freq = 4000.  # Hz
                             response = beamformer.get_beam(align_mat, align_mats, rffts, freq)
                             response = localizer.to_spher_grid(response)
-                            if np.max(np.abs(response)) > 1:
-                                response /= np.max(np.abs(response))
-                            X = response * x
-                            Y = response * y
-                            Z = response * z
-                            ax.plot_surface(X, Y, Z, rstride=1, cstride=1, color='white')
-                        ax.set_xlim(-1, 1)
-                        ax.set_ylim(-1, 1)
-                        ax.set_zlim(0, 1)
-                        #ax.view_init(90, -90)
-                        fig.canvas.draw()
-                    if PLOT_POLAR:
-                        plt.cla()
-                        d = localizer.to_spher_grid(d)
-                        con = ax.contourf(theta, r, d, vmin=0, vmax=40)
-                        con.set_cmap('gist_heat')
-                        if DO_BEAMFORM:
-                            response = response[-1, :]  # Pick which polar angle sample to use
-                            ax.plot(theta[0, :], response, 'cyan', linewidth=4)
-                            ax.set_rlim(0, 1)
-                        fig.canvas.draw()
+                            if np.max(response) > 1:
+                                response /= np.max(response)
+                            pol_beam_plot.set_ydata(response[-1, :])
+                        plt.draw()
                 count += 1
 
                 # Get the istft of the processed data
