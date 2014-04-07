@@ -70,10 +70,13 @@ class DistributionLocalizer(AudioLocalizer):
         :param rffts: positive half of the observed rffts
         :param method: method for computing the distribution. There are few options:
             'gcc': Use the Generalized Cross Correlation Method
-            'beamform': Use the energy of a delay and sum beamform
+            'beam': Use the energy of a delay and sum beamform
+            'mcc': Use cross correlation with all pairs of mics
         """
         if method == 'gcc':
             return self._get_distribution_gcc(rffts)
+        if method == 'beam':
+            return self._get_distribution_beam(rffts)
         if method == 'mcc':
             return self._get_distribution_mcc(rffts)
 
@@ -82,19 +85,45 @@ class DistributionLocalizer(AudioLocalizer):
         lowffts = rffts[:, :cutoff_index]  # Low pass filtered
         auto_corr = lowffts[0, :] * lowffts[1:, :].conjugate()
         auto_corr /= (np.abs(auto_corr) + consts.EPS)
-        #auto_corr /= (np.abs(lowffts[0, :]) + consts.EPS)
         # Get correlation values from time domain
-        corrs = np.zeros((self._n_mics - 1, self._n_theta * self._n_phi), dtype=consts.REAL_DTYPE)
+        corrs = np.zeros((self._n_mics - 1, self._n_theta * self._n_phi), 
+                          dtype=consts.REAL_DTYPE)
         if cutoff_index < self._dft_len/2. + 1:
             for i in range(corrs.shape[1]):
                 shifted = auto_corr * self._lp_pos_shift_mats[:, :, i]
-                corrs[:, i] = np.real(shifted[:, 0] + 2 * np.sum(shifted[:, 1:], axis=1))  # ifft for n = 0
+                corrs[:, i] = shifted[:, 0] + 2 * np.sum(shifted[:, 1:],
+                                      axis=1)  # ifft for n = 0
         else:
             for i in range(corrs.shape[1]):
                 shifted = auto_corr * self._lp_pos_shift_mats[:, :, i]
-                corrs[:, i] = np.real(shifted[:, 0] + 2 * np.sum(shifted[:, 1:-1], axis=1) + shifted[:, -1])  # ifft for n = 0
-        distr = np.maximum(np.sum(corrs, axis=0), consts.EPS)
+                corrs[:, i] = shifted[:, 0] + 2 * \
+                              np.sum(shifted[:, 1:-1], axis=1) + shifted[:, -1]
+        distr = np.maximum(np.sum(np.abs(corrs) ** 2, axis=0), consts.EPS)
         return distr
+
+    def _get_distribution_beam(self, rffts):
+        #freq = self.CUTOFF_FREQ-100
+        #freq = 1500
+        #freq_ind = int((freq / self._sample_rate) * (self._dft_len))
+        #response = self._lp_pos_shift_mats[:, freq_ind, :].conj()
+        #response = np.vstack((np.ones((1, response.shape[1])), response))
+        #rfft = np.tile(rffts[:, freq_ind], (response.shape[1], 1)).T
+        #shifted = response * rfft
+        #return np.sum(shifted * shifted.conj(), axis=0)
+        #return np.abs(np.sum(shifted, axis=0))
+        cutoff_index = self._compute_cutoff_index()
+        lowffts = rffts[:, :cutoff_index]  # Low pass filtered
+        distr = np.empty((self._n_phi * self._n_theta,))
+        # Create weighting vector for summing across frequencies
+        #w = np.linspace(0, 1, self._lp_pos_shift_mats.shape[1])
+        w = self._n_mics / np.sum(lowffts * lowffts.conj(), axis=0)
+        w[:3] = 0
+        for i in range(self._n_phi * self._n_theta):
+            response = np.vstack((np.ones((1, self._lp_pos_shift_mats.shape[1])), \
+                                  self._lp_pos_shift_mats[:, :, i].conj()))
+            distr[i] = np.abs(np.sum(w * np.sum(lowffts * response, axis=0)))
+        return distr
+
 
     def _get_distribution_mcc(self, rffts):
         cutoff_index = self._compute_cutoff_index()
@@ -112,12 +141,12 @@ class DistributionLocalizer(AudioLocalizer):
         if cutoff_index < self._dft_len/2. + 1:
             for i in range(self._n_theta * self._n_phi):
                 shifted = auto_corr * self._all_lp_pos_shift_mats[:, :, i]
-                corrs[:, i] = np.real(shifted[:, 0] + 2 * np.sum(shifted[:, 1:], axis=1))  # ifft for n = 0
+                corrs[:, i] = shifted[:, 0] + 2 * np.sum(shifted[:, 1:], axis=1)  # ifft for n = 0
         else:
             for i in range(self._n_theta * self._n_phi):
                 shifted = auto_corr * self._all_lp_pos_shift_mats[:, :, i]
-                corrs[:, i] = np.real(shifted[:, 0] + 2 * np.sum(shifted[:, 1:-1], axis=1) + shifted[:, -1])  # ifft for n = 0
-        distr = np.maximum(np.sum(corrs, axis=0), consts.EPS) # Replace zeros with EPS
+                corrs[:, i] = shifted[:, 0] + 2 * np.sum(shifted[:, 1:-1], axis=1) + shifted[:, -1]  # ifft for n = 0
+        distr = np.maximum(np.sum(corrs * corrs.conj(), axis=0), consts.EPS) # Replace zeros with EPS
         if np.any(np.isnan(distr)):
             print "NAN"
             print corrs
@@ -279,7 +308,7 @@ class DistributionLocalizer(AudioLocalizer):
         :returns: cutoff index as described. Will be of int type
         """
         cutoff_index = int((float(self.CUTOFF_FREQ) / self._sample_rate) * 
-                       (self._dft_len / 2))
+                       (self._dft_len / 1))
         if cutoff_index > self._dft_len / 2 + 1:
             cutoff_index = int(self._dft_len / 2 + 1)
         return cutoff_index

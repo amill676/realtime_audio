@@ -245,7 +245,7 @@ def localize():
                 # Process dfts from windowed segments of input
                 dfts = stft.getDFTs()
                 rffts = mat.to_all_real_matlab_format(dfts)
-                d = localizer.get_distribution_real(rffts[:, :, 0], 'mcc') # Use first hop
+                d = localizer.get_distribution_real(rffts[:, :, 0], 'gcc') # Use first hop
                 print d
                 print "SIZE: " + str(d.shape)
                 ind = np.argmax(d)
@@ -260,13 +260,15 @@ def localize():
                 # Take care of plotting
                 if count % 1 == 0:
                     if PLOT_POLAR:
-                        d -= np.min(d)
+                        #d -= np.min(d)
                         d = localizer.to_spher_grid(d)
-                        d /= np.max(d)
+                        #d /= np.max(d)
+                        if np.max(d) > 1:
+                          d /= np.max(d)
                         pol_plot.set_ydata(d[0, :])
                         if DO_BEAMFORM:
                             # Get beam plot
-                            freq = 4000.  # Hz
+                            freq = 1900.  # Hz
                             response = beamformer.get_beam(align_mat, align_mats, rffts, freq)
                             response = localizer.to_spher_grid(response)
                             if np.max(response) > 1:

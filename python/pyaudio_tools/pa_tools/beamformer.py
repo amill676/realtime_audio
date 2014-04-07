@@ -100,8 +100,6 @@ class BeamFormer(object):
         rfft = np.tile(rffts[:, freq_ind, 0], (response.shape[1], 1)).T
         shifted = response * rfft
         response = h.dot(shifted)
-        #return np.log(1 + np.abs(response))
-        #return response * response.conj()
         return np.abs(response)
 
 
