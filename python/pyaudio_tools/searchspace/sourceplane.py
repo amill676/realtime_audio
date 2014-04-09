@@ -15,6 +15,12 @@ class SourcePlane(object):
         """
         self._verify_params(normal, offset)
 
+    def get_normal(self):
+        return self._normal
+
+    def get_offset(self):
+        return self._offset
+
     def line_intersection(self, grad, offset):
         """
         Find point at which the line described by the given parameters
@@ -47,6 +53,7 @@ class SourcePlane(object):
         Ensure vector parameters passed to init are valid
         """
         self._normal = tools.check_3d_vec(normal)
+        self._normal /= tools.norm2(self._normal)
         self._offset = tools.check_3d_vec(offset)
 
 

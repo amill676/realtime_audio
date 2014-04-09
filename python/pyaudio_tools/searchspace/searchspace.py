@@ -46,10 +46,19 @@ class SearchSpace(object):
             raise ValueError('planes should be a list of SourcePlane objects')
         if len(planes) < 1:
             raise ValueError('planes must contain at least one SourcePlane')
-        for plane in planes:
-            if type(plane) is not SourcePlane:
-                raise ValueError('objects in planes should be of type SourcePlane')
+        #for plane in planes: We'll duck type I suppose...
+        #    if type(plane) is not SourcePlane:
+        #        raise ValueError('objects in planes should be of type SourcePlane')
         self._planes = planes
+
+    def get_mic_loc(self):
+        return self._mic_loc
+
+    def get_cam_loc(self):
+        return self._cam_loc
+
+    def get_planes(self):
+        return self._planes
 
     def get_source_loc(self, dir_from_mic):
         """
@@ -62,7 +71,7 @@ class SearchSpace(object):
         offset = self._mic_loc
         grad = dir_from_mic
         # Track best estimate so far
-        estimate = np.array([0, 0, 0])
+        estimate = None
         estimate_dist = np.inf
         for plane in self._planes:
             location = plane.line_intersection(grad, offset)

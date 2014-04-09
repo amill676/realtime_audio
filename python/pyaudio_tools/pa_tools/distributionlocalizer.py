@@ -87,7 +87,7 @@ class DistributionLocalizer(AudioLocalizer):
         auto_corr /= (np.abs(auto_corr) + consts.EPS)
         # Get correlation values from time domain
         corrs = np.zeros((self._n_mics - 1, self._n_theta * self._n_phi), 
-                          dtype=consts.REAL_DTYPE)
+                          dtype=consts.COMPLEX_DTYPE)
         if cutoff_index < self._dft_len/2. + 1:
             for i in range(corrs.shape[1]):
                 shifted = auto_corr * self._lp_pos_shift_mats[:, :, i]
@@ -147,10 +147,6 @@ class DistributionLocalizer(AudioLocalizer):
                 shifted = auto_corr * self._all_lp_pos_shift_mats[:, :, i]
                 corrs[:, i] = shifted[:, 0] + 2 * np.sum(shifted[:, 1:-1], axis=1) + shifted[:, -1]  # ifft for n = 0
         distr = np.maximum(np.sum(corrs * corrs.conj(), axis=0), consts.EPS) # Replace zeros with EPS
-        if np.any(np.isnan(distr)):
-            print "NAN"
-            print corrs
-            print auto_corr
         return distr
 
     def get_3d_real_distribution(self, dfts):

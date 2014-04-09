@@ -268,7 +268,7 @@ def localize():
                         pol_plot.set_ydata(d[0, :])
                         if DO_BEAMFORM:
                             # Get beam plot
-                            freq = 1900.  # Hz
+                            freq = 1000.  # Hz
                             response = beamformer.get_beam(align_mat, align_mats, rffts, freq)
                             response = localizer.to_spher_grid(response)
                             if np.max(response) > 1:
