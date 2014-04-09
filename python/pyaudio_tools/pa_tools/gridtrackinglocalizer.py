@@ -101,16 +101,3 @@ class GridTrackingLocalizer(TrackingLocalizer):
         #next_state = np.hstack((next_state, np.zeros((2,))))
         # Store probabilty of transition
         self._transition_mat[i, j] = gauss_p(next_state, curr_state)
-  
-        
-      
-
-
-  
-    
-
-
-
-
-  
-

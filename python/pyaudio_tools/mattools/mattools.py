@@ -234,6 +234,17 @@ def check_3d_vec(vec):
         raise ValueError("vectors must be 3 dimensional")
     return vec
 
+def check_3d_vec_normalize(vec):
+    """
+    Ensure that the input is a 3-d vector and has float type.
+    :returns: The float version of the vector if it has proper size. If already
+                float, no copy is made
+    """
+    vec = check_3d_vec(vec)
+    if norm2(vec) < consts.EPS:
+      ValueError("Cannot normalize length 0 vector")
+    vec /= norm2(vec)
+    return vec
 
 def check_vec(vec):
     """
@@ -266,3 +277,28 @@ def norm2(vec):
     """
     vec = check_vec(vec)
     return (float(np.sum(vec ** 2))) ** .5
+
+def gauss_pdf(x, mu, cov):
+    scaled = np.linalg.solve(cov, x-mu)
+    return 1. / np.sqrt((2*np.pi)**2 * np.linalg.det(cov)) * \
+                np.exp(-.5 * (x - mu).T.dot(scaled))
+
+
+def plane_intersection_point(basis, source_offset, source_dir, 
+                             plane_offset, plane_normal):
+    """
+    Find the point at which a line eminating from a source will hit a plane.
+    Express the line in the coordinate system of the source
+    :param basis: 3x3 matrix where columns are basis that the line direction
+                  will be expressed in
+    :param source_offset: offset to origin of source coordinate system, in
+                          world coordinates (3-d vector)
+    :param source_dir: 3-d vector expressing direction of line from source.
+                       This is expressed in the source coordinates, not world
+                       coordinates
+    :param plane_offset: offset to point on plane (in world coordinates)
+    :param plane_normal: normal vector to plane in world coordinates
+    """
+    vec = plane_normal.T.dot(plane_offset - source_offset) / \
+          plane_normal.T.dot(basis.dot(source_dir)) * basis.dot(source_dir)
+    return np.linalg.solve(basis, vec)

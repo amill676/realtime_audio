@@ -52,6 +52,13 @@ class OrientedSourcePlane(SourcePlane):
       raise ValueError("Input vector's third component must be 0")
       
     return self._transform_mat.dot(y) + self._offset
+
+  def get_transform_mat(self):
+    """ 
+    Get the transformation matrix W such that for a vector x in world 
+    coordinates and a vector y in plane coordinates, x = Wy + offset
+    """
+    return self._transform_mat
     
   def _verify_params(self, normal, up, offset):
     """
