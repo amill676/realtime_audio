@@ -46,6 +46,8 @@ class SourcePlane(object):
         if abs(np.max(grad.dot(self._normal))) < 1e-9:
             return None
         t = (self._normal.dot(self._offset - lin_offset)) / (self._normal.dot(grad))
+        if t < 0:
+            return None
         return lin_offset + t * grad
 
     def _verify_params(self, normal, offset):

@@ -61,6 +61,9 @@ class DistributionLocalizer(AudioLocalizer):
         #distr[3, :] -= np.log(1.e14)
         return distr
 
+    def get_uncond_distribution(self, rffts, method='gcc'):
+        return self.get_distribution_real(rffts, method)
+
     def get_distribution_real(self, rffts, method='gcc'):
         """
         Get the posterior distribution of source locations over the search space
@@ -73,12 +76,20 @@ class DistributionLocalizer(AudioLocalizer):
             'beam': Use the energy of a delay and sum beamform
             'mcc': Use cross correlation with all pairs of mics
         """
+        
+        energy = self._get_energy(rffts)
         if method == 'gcc':
-            return self._get_distribution_gcc(rffts)
+            distr = self._get_distribution_gcc(rffts)
         if method == 'beam':
-            return self._get_distribution_beam(rffts)
+            distr = self._get_distribution_beam(rffts)
         if method == 'mcc':
-            return self._get_distribution_mcc(rffts)
+            distr = self._get_distribution_mcc(rffts)
+        return distr, energy
+
+    def _get_energy(self, rffts):
+        cutoff_index = self._compute_cutoff_index()
+        lowffts = rffts[:, :cutoff_index]
+        return np.sum(np.sum(lowffts * lowffts.conj()))
 
     def _get_distribution_gcc(self, rffts):
         cutoff_index = self._compute_cutoff_index()

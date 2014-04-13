@@ -54,10 +54,11 @@ class KalmanTrackingLocalizer(TrackingLocalizer):
     # Predict
     state_pred = self._transition_mat.dot(self._state_estimate)
     cov_pred = \
-      self._transition_mat.dot(self._estimate_cov).dot(self._transition_mat.T)
+      self._transition_mat.dot(self._estimate_cov).dot(self._transition_mat.T) \
+      + self._transformed_state_cov
     # Update
     # Get observation
-    d = self.get_distribution_real(rffts, 'gcc')
+    d, energy = self.get_distribution_real(rffts, 'gcc')
     max_ind = np.argmax(d)
     obs = self._direction_to_plane_point(self._directions[:, max_ind])
     if obs is not None:
@@ -70,7 +71,7 @@ class KalmanTrackingLocalizer(TrackingLocalizer):
       self._state_estimate = state_pred + K.dot(innov) 
       #self._state_estimate[-1] = 1
       self._estimate_cov = (np.identity(7) - K.dot(self._emission_mat)).dot(cov_pred)
-      print self._state_estimate
+      self._estimate_cov[6, 6] = .01
       #self._estimate_cov[-1, -1] = .01
       #print self._estimate_cov
     return self._distribution_from_estimates(self._state_estimate, self._estimate_cov)
@@ -125,10 +126,11 @@ class KalmanTrackingLocalizer(TrackingLocalizer):
     # Setup the transformation matrix D
     self._setup_state_transform_mat(mic_forward, mic_above)
     # Store standard model
-    #self._transition_mat = trans_mat
-    self._state_cov = state_cov
-    #self._emission_mat = emission_mat
-    self._emission_mat = np.hstack((np.identity(3), np.zeros((3,4))))
+
+    # self._emission_mat = emission_mat
+    self._emission_mat = np.hstack((emission_mat, np.zeros((3,1))))
+    #self._emission_mat = np.hstack((np.identity(3), np.zeros((3,4))))
+
     self._emission_cov = emission_cov
     # Transform into new space
     extended_trans_mat = np.zeros((7,7))
@@ -219,32 +221,3 @@ class KalmanTrackingLocalizer(TrackingLocalizer):
       return None
     return np.linalg.solve(self._mic_basis, point - offset)
 
-  #def _setup_structures(self):
-  #  """
-  #  Setup structures for enabling computation
-  #  """
-  #  # Precompute the probability of transitioning from one point in the 
-  #  # state space to any other point, using the given transition model
-  #  # entry (i,j) is probability of transitioning from point i to j
-  #  self._transition_mat = np.empty((self._grid_size, self._grid_size))
-  #  gauss_p = lambda x, mu: 1. / np.sqrt((2*np.pi)**2 * np.linalg.det(self._state_cov)) * \
-  #              np.exp(-.5 * (x - mu).T.dot(self._state_prec).dot(x - mu))
-  #  for i in range(self._grid_size):
-  #    for j in range(self._grid_size):
-  #      # Get current and next state in 2-dimensional plane coordinates, 
-  #      # with velocities
-  #      curr_state = self._search_space.get_source_loc(self._directions[:, i])
-  #      if curr_state is None: # Given direction can't reach plane
-  #        self._transition_mat[i, j] = 0
-  #        continue
-  #      curr_state = self._tracking_plane.to_plane_coordinates(curr_state)[:-1]
-  #      #curr_state = np.hstack((curr_state, np.zeros((2,))))
-  #      next_state = self._search_space.get_source_loc(self._directions[:, j])
-  #      if next_state is None: # Given direction can't reach plane
-  #        self._transition_mat[i, j] = 0
-  #        continue
-  #      next_state = self._tracking_plane.to_plane_coordinates(next_state)[:-1]
-  #      #next_state = np.hstack((next_state, np.zeros((2,))))
-  #      # Store probabilty of transition
-  #      self._transition_mat[i, j] = gauss_p(next_state, curr_state)
-  

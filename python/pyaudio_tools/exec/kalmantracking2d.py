@@ -29,13 +29,13 @@ FRAMES_PER_BUF = 2048  # For 44100 Fs, be careful going over 4096, loud sounds m
 FFT_LENGTH = FRAMES_PER_BUF
 WINDOW_LENGTH = FFT_LENGTH
 HOP_LENGTH = WINDOW_LENGTH / 2
-NUM_CHANNELS_IN = 7
+NUM_CHANNELS_IN = 4
 NUM_CHANNELS_OUT = 1
-N_THETA = 30
-N_PHI = N_THETA / 2
+N_THETA = 100
+N_PHI = 1
 PLOT_POLAR = False
 PLOT_CARTES = True
-PLOT_2D = False
+PLOT_2D = True
 EXTERNAL_PLOT = False
 PLAY_AUDIO = False
 DO_BEAMFORM = False
@@ -43,9 +43,10 @@ RECORD_AUDIO = False
 OUTFILE_NAME = 'nonbeamformed.wav'
 TIMEOUT = 1
 # Source planes and search space
-SOURCE_PLANE_NORMAL = np.array([0, 1, 0])
+SOURCE_PLANE_NORMAL = np.array([0, -1, 0])
 SOURCE_PLANE_UP = np.array([0, 0 , 1])
-SOURCE_PLANE_OFFSET = np.array([0, -3, 0])
+SOURCE_PLANE_OFFSET = np.array([0, 3, 0])
+SOURCE_LOCATION_COV = np.array([[1, 0], [0, .01]])
 MIC_LOC = np.array([0, 0, 0])
 CAMERA_LOC = np.array([0, 0, 0])
 TIME_STEP = .1
@@ -56,14 +57,14 @@ STATE_TRANSITION_MAT = np.array([[1, 0, 0, TIME_STEP, 0, 0],
                                  [0, 0, 0, 0, 1, 0],
                                  [0, 0, 0, 0, 0, 1]])
 #STATE_COV_MAT = 5 * np.identity(6, consts.REAL_DTYPE)
-STATE_COV_MAT = np.array([[1, 0, 0, 0, 0, 0],
-                          [0, 1, 0, 0, 0, 0],
-                          [0 ,0, 1, 0, 0, 0],
+STATE_COV_MAT = np.array([[0, 0, 0, 0, 0, 0],
+                          [0, .01, 0, 0, 0, 0],
+                          [0 ,0, .01, 0, 0, 0],
                           [0, 0, 0, .01, 0, 0],
                           [0, 0, 0, 0, .01, 0],
                           [0, 0, 0, 0, 0, .01]])
 EMISSION_MAT = np.hstack((np.identity(3), np.zeros((3,3))))
-EMISSION_COV = np.array([[100, 0, 0], [0, 100, 0], [0, 0, 100]], dtype=consts.REAL_DTYPE)
+EMISSION_COV = np.array([[1000, 0, 0], [0, .1, 0], [0, 0, 1]], dtype=consts.REAL_DTYPE)
 MIC_FORWARD = np.array([0, 1, 0])
 MIC_ABOVE = np.array([0, 0, 1])
 
@@ -71,15 +72,7 @@ MIC_ABOVE = np.array([0, 0, 1])
 np.set_printoptions(precision=2, suppress=True)
 
 # Setup mics
-R = 0.0375
-H = 0.07
-mic_layout = np.array([[0, 0, H],
-                       [R, 0, 0],
-                       [R*math.cos(math.pi/3), R*math.sin(math.pi/3), 0],
-                       [-R*math.cos(math.pi/3), R*math.sin(math.pi/3), 0],
-                       [-R, 0, 0],
-                       [-R*math.cos(math.pi/3), -R*math.sin(math.pi/3), 0],
-                       [R*math.cos(math.pi/3), -R*math.sin(math.pi/3), 0]])
+mic_layout = np.array([[.03, 0], [-.01, 0], [.01, 0], [-.03, 0]])
 # Track whether we have quit or not
 done = False
 switch_beamforming = False  # Switch beamforming from on to off or off to on
@@ -280,12 +273,27 @@ def localize():
             pol_beam_plot, = plt.plot(theta, np.ones(theta.shape), 'red')
     if PLOT_CARTES:
         fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
+        ax = fig.add_subplot(111)
+        ax.set_ylim(0, 1)
         plt.show(block=False)
-        x = localizer.to_spher_grid(direcs[0, :])
-        y = localizer.to_spher_grid(direcs[1, :])
-        z = localizer.to_spher_grid(direcs[2, :])
-        #scat = ax.scatter(x, y, z, s=100)
+        # Setup space for plotting in new coordinates
+        spher_coords = localizer.get_spher_directions()
+        theta = spher_coords[1, :]
+        pol_plot, = plt.plot(theta, np.ones(theta.shape))
+        post_plot, = plt. plot(theta, np.ones(theta.shape), 'green')
+        ax.set_ylim(0, 1)
+        ax.set_xlim(0, np.pi)
+        if DO_BEAMFORM:
+            pol_beam_plot, = plt.plot(theta, np.ones(theta.shape), 'red')
+    if PLOT_2D:
+        fig_2d = plt.figure()
+        ax_2d = fig_2d.add_subplot(111)
+        n_past_samples = 100
+        sample_mat = np.zeros((N_THETA, n_past_samples))
+        estimate_mat = np.zeros((n_past_samples,))
+        plot_2d = ax_2d.imshow(sample_mat, vmin=0, vmax=.03)
+        state_est_plot, = plt.plot(estimate_mat, 'red')
+        plt.show(block=False)
     if EXTERNAL_PLOT:
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -309,10 +317,10 @@ def localize():
                 rffts = mat.to_all_real_matlab_format(dfts)
                 d, energy = localizer.get_distribution_real(rffts[:, :, 0], 'gcc') # Use first hop
                 post = localizer.get_distribution(rffts[:, :, 0])
-                ind = np.argmax(post)
+                ind = np.argmax(d)
                 u = 1.5 * direcs[:, ind]  # Direction of arrival
-                #if energy < 500:
-                #    continue
+                if energy < 500:
+                    continue
 
                 # Do beam forming
                 if DO_BEAMFORM:
@@ -322,26 +330,27 @@ def localize():
 
                 # Take care of plotting
                 if count % 1 == 0:
-                    if PLOT_CARTES:
-                        ax.cla()
-                        ax.grid(False)
-                        d = localizer.to_spher_grid(post / (np.max(post) + consts.EPS))
-                        #d = localizer.to_spher_grid(d / (np.max(d) + consts.EPS))
-                        ax.scatter(x, y, z, c=d, s=40)
-                        #ax.plot_surface(x, y, z, rstride=1, cstride=1, facecolor=plt.cm.gist_heat(d))
-                        ax.plot([0, u[0]], [0, u[1]], [0, u[2]], c='black', linewidth=3)
+                    if PLOT_POLAR or PLOT_CARTES:
+                        dist = d
+                        #dist -= np.min(dist)
+                        dist = localizer.to_spher_grid(dist)
+                        post = localizer.to_spher_grid(post) * 50
+                        #dist /= np.max(dist)
+                        if np.max(dist) > 1:
+                          dist /= np.max(dist)
+                        if np.max(post) > 1:
+                          post /= np.max(post)
+                        pol_plot.set_ydata(dist[0, :])
+                        post_plot.set_ydata(post[0, :])
                         if DO_BEAMFORM:
-                            if np.max(np.abs(response)) > 1:
-                                response /= np.max(np.abs(response))
-                            X = response * x
-                            Y = response * y
-                            Z = response * z
-                            ax.plot_surface(X, Y, Z, rstride=1, cstride=1, color='white')
-                        ax.set_xlim(-1, 1)
-                        ax.set_ylim(-1, 1)
-                        ax.set_zlim(0, 1)
-                        #ax.view_init(90, -90)
-                        fig.canvas.draw()
+                            # Get beam plot
+                            freq = 1900.  # Hz
+                            response = beamformer.get_beam(align_mat, align_mats, rffts, freq)
+                            response = localizer.to_spher_grid(response)
+                            if np.max(response) > 1:
+                                response /= np.max(response)
+                            pol_beam_plot.set_ydata(response[-1, :])
+                        plt.draw()
                     if PLOT_2D:
                         # Get unconditional distribution
                         dist = localizer.to_spher_grid(d)
