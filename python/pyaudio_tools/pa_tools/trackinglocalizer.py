@@ -18,9 +18,10 @@ class TrackingLocalizer(DistributionLocalizer):
     """
     DistributionLocalizer.__init__(self, mic_positions, dft_len, sample_rate,
                                    n_theta, n_phi)
-    self._search_space = search_space
-    self._setup_posterior_grid()
+    self._process_search_space(search_space)
 
     def _process_search_space(self, search_space):
       self._search_space = search_space
+      self._planes =- self._search_space.get_planes()
+      self._tracking_plane = self._planes[0]
 

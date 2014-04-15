@@ -93,6 +93,9 @@ class SearchSpace(object):
         :returns: direction to source from camera as 3-d vector (numpy array)
         """
         location = self.get_source_loc(dir_from_mic)
+        print "Direction: %s, location: %s" % (dir_from_mic, location)
+        if location is None:
+          return None
         vec = location - self._cam_loc
         # Normalize
         norm = np.sum(vec ** 2) ** .5

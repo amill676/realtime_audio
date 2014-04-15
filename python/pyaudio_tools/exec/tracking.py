@@ -27,6 +27,7 @@ CAMERA_LOC = np.array([0, 0, 0])
 TRACKING_FREQ = 4
 DO_TRACK = True
 PLOT_SPACE = False
+URL = "172.22.11.130"
 
 # Setup constants
 SAMPLE_TYPE = pyaudio.paFloat32

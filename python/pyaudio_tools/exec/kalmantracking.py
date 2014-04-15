@@ -45,7 +45,7 @@ TIMEOUT = 1
 # Source planes and search space
 SOURCE_PLANE_NORMAL = np.array([0, 1, 0])
 SOURCE_PLANE_UP = np.array([0, 0 , 1])
-SOURCE_PLANE_OFFSET = np.array([0, -3, 0])
+SOURCE_PLANE_OFFSET = np.array([0, 4, 0])
 MIC_LOC = np.array([0, 0, 0])
 CAMERA_LOC = np.array([0, 0, 0])
 TIME_STEP = .1
