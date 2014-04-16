@@ -63,6 +63,9 @@ class VonMisesCPdf(CPdf):
     return self.samples(1, cond)
 
   def samples(self, n, cond=None):
+    if np.any(np.isnan(cond)):
+      print cond
+      raise ValueError("NAN detected in cond")
     cond = self._verify_shape(cond)
     # Normalize -- must lie on unit sphere
     if self._norm2(cond) < consts.EPS:
@@ -122,9 +125,12 @@ class VonMisesCPdf(CPdf):
     # Get rotation matrix
     # Get angle between [1, 0, 0] and mu
     e = np.array([1., 0., 0.])
+    #print "MU: %s" % mu
+    #print "%s, %s" %(e.dot(mu), self._norm2(mu))
     ang = np.arccos(e.dot(mu) / (self._norm2(mu)))
     # Get rotation axis r
     r = np.cross(e, mu)
+    r /= (self._norm2(r) + consts.EPS)
     outer = np.outer(r, r)
     R = np.array([[0, -r[2], r[1]], [r[2], 0, -r[0]], [-r[1], r[0], 0]]) \
         * np.sin(ang) + (np.identity(3) - outer)*np.cos(ang) + outer
@@ -140,4 +146,4 @@ class VonMisesCPdf(CPdf):
       raise ValueError("x must be a vector")
     if len(x.shape) > 1:
       return np.sum(x[:, 0] ** 2)
-    return np.sum(np.asarray(x) ** 2)
+    return np.sqrt(np.sum(np.asarray(x) ** 2))

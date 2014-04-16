@@ -40,6 +40,7 @@ class SonyCamera(object):
         v = mat.check_3d_vec(direction)
         pan = self._converter.get_pan(v)
         tilt = self._converter.get_tilt(v)
+        tilt = -10
         command = self._formatter.absolute_pos_command(pan, tilt)
         self._send_command(command)
 

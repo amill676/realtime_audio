@@ -42,6 +42,7 @@ PLAY_AUDIO = False
 DO_BEAMFORM = False
 RECORD_AUDIO = False
 VIDEO_OVERLAY = False
+SAVE_FRAMES = True
 PLOT_PARTICLES = True
 OUTFILE_NAME = 'nonbeamformed.wav'
 TIMEOUT = 1
@@ -101,7 +102,8 @@ def write_out_data(in_data, frame_count, time_info, status_flags):
     if out_buf.get_available_read() >= frame_count:
         return out_buf.read_bytes(frame_count), pyaudio.paContinue
     else:  # Return empty data (returning None will trigger paComplete)
-        return '\x00' * frame_count * SAMPLE_SIZE * NUM_CHANNELS_OUT, pyaudio.paContinue
+        return '\x00' * frame_count * SAMPLE_SIZE * \
+                NUM_CHANNELS_OUT, pyaudio.paContinue
 
 
 def process_dfts(dfts):
@@ -414,6 +416,7 @@ def localize():
                         plot_particles(particle_plots, estimate_plot, ps, w, estimate)
                         plot_particles(particle_plots2, estimate_plot2, ps2, w2, estimate2)
                         plt.draw()
+                        
                     if PLOT_POLAR or PLOT_CARTES:
                         dist = d
                         #dist -= np.min(dist)
@@ -454,6 +457,8 @@ def localize():
                         overlay_particles(video_handle, vid_part_plots, vid_estim_plot, \
                                               cvimage, ps, w, estimate)
                         plt.draw()
+                    if SAVE_FRAMES:
+                        fig.canvas.print_rgba('out/out' + str(count) + '.mat')
                 count += 1
 
                 # Get the istft of the processed data

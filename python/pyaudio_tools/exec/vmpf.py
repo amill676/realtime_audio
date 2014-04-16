@@ -40,8 +40,8 @@ PLOT_CARTES = False
 PLOT_2D = False
 EXTERNAL_PLOT = False
 PLAY_AUDIO = False
-DO_TRACK = False
-TRACKING_FREQ = 1
+DO_TRACK = True
+TRACKING_FREQ = 3
 DO_BEAMFORM = False
 RECORD_AUDIO = False
 OUTFILE_NAME = 'nonbeamformed.wav'
@@ -50,13 +50,16 @@ TIMEOUT = 1
 SOURCE_PLANE_NORMAL = np.array([0, 1, 0])
 SOURCE_PLANE_UP = np.array([0, 0 , 1])
 SOURCE_PLANE_OFFSET = np.array([0, 5.5, 0])
-MIC_LOC = np.array([1.5, 4, -3])
+MIC_LOC = np.array([2, 4, -3.5])
 CAMERA_LOC = np.array([0, 0, 0])
 URL = "http://172.22.11.130"
 MIC_FORWARD = np.array([0, -1, 0])
 MIC_ABOVE = np.array([0, 0, 1])
-STATE_KAPPA = 1
-OBS_KAPPA = 1
+CAM_FORWARD = np.array([0, 1, 0])
+CAM_ABOVE = np.array([0, 0, 1])
+STATE_KAPPA = 100
+OBS_KAPPA = 50
+OUTLIER_PROB = .95
 N_PARTICLES = 80
 
 # Setup printing
@@ -211,12 +214,10 @@ def localize():
     source_plane = OrientedSourcePlane(SOURCE_PLANE_NORMAL, 
                                        SOURCE_PLANE_UP,
                                        SOURCE_PLANE_OFFSET)
-    space = SearchSpace(MIC_LOC, CAMERA_LOC, [source_plane])
+    space = SearchSpace(MIC_LOC, CAMERA_LOC, [source_plane], MIC_FORWARD, MIC_ABOVE)
 
     # Setup camera
-    forward = np.array([0, 1, 0])
-    above = np.array([0, 0, 1])
-    camera = SonyCamera(URL, forward, above)
+    camera = SonyCamera(URL, CAM_FORWARD, CAM_ABOVE)
     prev_direc = np.array([1., 0., 0.])
     if DO_TRACK:
       camera.face_direction(prev_direc) # Will force login
@@ -229,21 +230,21 @@ def localize():
                                       n_particles=N_PARTICLES,
                                       state_kappa=STATE_KAPPA,
                                       observation_kappa=OBS_KAPPA,
-                                      outlier_prob=0,
+                                      outlier_prob=OUTLIER_PROB,
                                       dft_len=FFT_LENGTH,
                                       sample_rate=SAMPLE_RATE,
                                       n_theta=N_THETA,
                                       n_phi=N_PHI)
-    localizer2 = VonMisesTrackingLocalizer(mic_positions=mic_layout,
-                                      search_space=space,
-                                      n_particles=N_PARTICLES,
-                                      state_kappa=STATE_KAPPA,
-                                      observation_kappa=OBS_KAPPA,
-                                      outlier_prob=.8,
-                                      dft_len=FFT_LENGTH,
-                                      sample_rate=SAMPLE_RATE,
-                                      n_theta=N_THETA,
-                                      n_phi=N_PHI)
+    #localizer2 = VonMisesTrackingLocalizer(mic_positions=mic_layout,
+    #                                  search_space=space,
+    #                                  n_particles=N_PARTICLES,
+    #                                  state_kappa=STATE_KAPPA,
+    #                                  observation_kappa=OBS_KAPPA,
+    #                                  outlier_prob=.8,
+    #                                  dft_len=FFT_LENGTH,
+    #                                  sample_rate=SAMPLE_RATE,
+    #                                  n_theta=N_THETA,
+    #                                  n_phi=N_PHI)
     beamformer = BeamFormer(mic_layout, SAMPLE_RATE)
 
     # Setup STFT object
@@ -294,7 +295,7 @@ def localize():
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         particle_plot, estimate_plot = setup_particle_plot(ax, 'b', 'k')
-        particle_plot2, estimate_plot2 = setup_particle_plot(ax, 'g', 'r')
+        #particle_plot2, estimate_plot2 = setup_particle_plot(ax, 'g', 'r')
         plt.show(block=False)
     if PLOT_POLAR:
         fig = plt.figure()
@@ -339,19 +340,20 @@ def localize():
                 dfts = stft.getDFTs()
                 rffts = mat.to_all_real_matlab_format(dfts)
                 d, energy = localizer.get_distribution_real(rffts[:, :, 0], 'gcc') # Use first hop
+                #print energy
+                if energy < 2500:
+                    continue
                 post = localizer.get_distribution(rffts[:, :, 0]) # PyBayes EmpPdf
-                post2 = localizer2.get_distribution(rffts[:, :, 0])
+                #post2 = localizer2.get_distribution(rffts[:, :, 0])
                 # Get estimate from particles
                 w = np.asarray(post.weights)
                 ps = np.asarray(post.particles)
                 estimate = w.dot(ps)
-                w2 = np.asarray(post2.weights)
-                ps2 = np.asarray(post2.particles)
-                estimate2 = w2.dot(ps2)
+                #w2 = np.asarray(post2.weights)
+                #ps2 = np.asarray(post2.particles)
+                #estimate2 = w2.dot(ps2)
                 #ind = np.argmax(d)
                 #u = 1.5 * direcs[:, ind]  # Direction of arrival
-                #if energy < 500:
-                #    continue
                 if DO_TRACK and count % TRACKING_FREQ == 0:
                     #v = np.array([1, 0, 1])
                     v = estimate
@@ -359,6 +361,7 @@ def localize():
                     if direc is None or not direc.any():
                         direc = prev_direc
                     else:
+                        direc[2] = -.5
                         prev_direc = direc
                     # Send camera new direction
                     camera.face_direction(direc)
@@ -373,7 +376,7 @@ def localize():
                 if count % 1 == 0:
                     if PLOT_PARTICLES:
                         plot_particles(particle_plot, estimate_plot, post.particles, estimate)
-                        plot_particles(particle_plot2, estimate_plot2, post2.particles, estimate2)
+                        #plot_particles(particle_plot2, estimate_plot2, post2.particles, estimate2)
                         plt.draw()
                     if PLOT_CARTES:
                         ax.cla()

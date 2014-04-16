@@ -22,14 +22,19 @@ class SearchSpace(object):
     its location with respect to the camera and then all information
     is determined.
     """
-    def __init__(self, mic_loc, cam_loc, planes):
+    def __init__(self, mic_loc, cam_loc, planes, mic_forward, mic_above):
         """
         :param mic_loc: coordinate location of microphone array (localizer)
         :param cam_loc: coordinate location of camera
         :param planes: list of SourcePlane objects describing feasibility planes
+        :param mic_forward: the vector corresponding to the postive y direction
+                            for the mic, in world frame
+        :param mic_above: the vector corresponding to the postive z direction
+                          for the mic, in world frame
         """
         self._process_locations(mic_loc, cam_loc)
         self._process_planes(planes)
+        self._setup_transform(mic_forward, mic_above)
 
     def _process_locations(self, mic_loc, cam_loc):
         """
@@ -37,6 +42,13 @@ class SearchSpace(object):
         """
         self._mic_loc = tools.check_3d_vec(mic_loc)
         self._cam_loc = tools.check_3d_vec(cam_loc)
+
+    def _setup_transform(self, mic_forward, mic_above):
+        mic_forward = tools.check_3d_vec_normalize(mic_forward)
+        mic_above = tools.check_3d_vec_normalize(mic_above)
+        mic_right = np.cross(mic_forward, mic_above)
+        # Setup basis matrix for mic coordinate system.
+        self._transform_mat = np.array([mic_right, mic_forward, mic_above])
 
     def _process_planes(self, planes):
         """
@@ -65,11 +77,12 @@ class SearchSpace(object):
         Get the location of the source using the estimated direction of
         the source from the perspective of teh microphone array (localizer)
         :param dir_from_mic: 3-d vector as numpy array. Direction from localizer
+                             in frame of localizer
         :returns: Absolute coordinates of the source as 3-d vector (numpy array)
         """
         # Setup line along projected source direction
         offset = self._mic_loc
-        grad = dir_from_mic
+        grad = self._transform_mat.dot(dir_from_mic)
         # Track best estimate so far
         estimate = None
         estimate_dist = np.inf

@@ -89,7 +89,7 @@ class VonMisesTrackingLocalizer(TrackingLocalizer):
     if outlier_prob < 0 or outlier_prob > 1:
       raise ValueError("Outlier probability must be between 0 and 1")
     self._outlier_rv = pb.RV(pb.RVComp(ndim, 'outlier'))
-    self._outlier_mu = np.hstack((np.array([1.]), np.zeros((ndim-1,))))
+    self._outlier_mu = np.hstack((np.array([0, -1.]), np.zeros((ndim-2,))))
     self._outlier_kappa = .001
     self._outlier_prob = outlier_prob # Probability of generation from background pdf
     self._outlier_distribution = \
@@ -97,6 +97,7 @@ class VonMisesTrackingLocalizer(TrackingLocalizer):
 
     # Do particle filtering ourselves...
     self._posterior = EmpPdf(self._init_distribution.samples(self._n_particles))
+    self._count = 0
 
     #self._particle_filter = pb.ParticleFilter(self._n_particles, 
     #                                          self._init_distribution, 
@@ -129,7 +130,9 @@ class VonMisesTrackingLocalizer(TrackingLocalizer):
     have a background near-uniform distribution eating up all the outlier
     data. Then weight the particles using this assumption
     """
-    self._posterior.resample()
+    self._count += 1
+    if self._count % 1 == 0:
+      self._posterior.resample()
     for i in range(self._posterior.particles.shape[0]):
       # generate new ith particle:
       self._posterior.particles[i] = \

@@ -10,7 +10,7 @@ import constants as consts
 
 class AudioLocalizer:
 
-    CUTOFF_FREQ = 2000  # in Hz
+    CUTOFF_FREQ = 4000  # in Hz
     N_ANGLES = 60
 
     def __init__(self, mic_layout, dft_len=512, sample_rate=44100):
