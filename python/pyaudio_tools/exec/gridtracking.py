@@ -38,7 +38,7 @@ PLOT_POLAR = False
 PLOT_CARTES = True
 EXTERNAL_PLOT = False
 PLAY_AUDIO = False
-DO_BEAMFORM = True
+DO_BEAMFORM = False
 RECORD_AUDIO = False
 OUTFILE_NAME = 'nonbeamformed.wav'
 TIMEOUT = 1
@@ -48,6 +48,8 @@ SOURCE_PLANE_UP = np.array([0, 0 , 1])
 SOURCE_PLANE_OFFSET = np.array([0, 4, 0])
 SOURCE_LOCATION_COV = np.array([[1, 0], [0, .01]])
 MIC_LOC = np.array([0, 0, 0])
+MIC_FORWARD = np.array([0, 1, 0])
+MIC_ABOVE = np.array([0, 0, 1])
 CAMERA_LOC = np.array([0, 0, 0])
 
 # Setup mics
@@ -174,7 +176,7 @@ def localize():
     source_plane = OrientedSourcePlane(SOURCE_PLANE_NORMAL, 
                                        SOURCE_PLANE_UP,
                                        SOURCE_PLANE_OFFSET)
-    space = SearchSpace(MIC_LOC, CAMERA_LOC, [source_plane])
+    space = SearchSpace(MIC_LOC, CAMERA_LOC, [source_plane], MIC_FORWARD, MIC_ABOVE)
                                        
     # Setup pyaudio instances
     pa = pyaudio.PyAudio()
@@ -233,7 +235,7 @@ def localize():
 
     # Plotting setup
     if PLOT_POLAR:
-        fig = plt.figure()
+        fig = plt.figure(facecolor='white')
         ax = fig.add_subplot(111, projection='polar')
         ax.set_rlim(0, 1)
         plt.show(block=False)
@@ -241,12 +243,12 @@ def localize():
         spher_coords = localizer.get_spher_directions()
         theta = spher_coords[1, :]
         pol_plot, = plt.plot(theta, np.ones(theta.shape))
-        post_plot, = plt. plot(theta, np.ones(theta.shape), 'green')
+        #post_plot, = plt. plot(theta, np.ones(theta.shape), 'green')
         ax.set_ylim(0, 1)
         if DO_BEAMFORM:
             pol_beam_plot, = plt.plot(theta, np.ones(theta.shape), 'red')
     if PLOT_CARTES:
-        fig = plt.figure()
+        fig = plt.figure(facecolor='white')
         ax = fig.add_subplot(111)
         ax.set_ylim(0, 1)
         plt.show(block=False)
@@ -254,7 +256,7 @@ def localize():
         spher_coords = localizer.get_spher_directions()
         theta = spher_coords[1, :]
         pol_plot, = plt.plot(theta, np.ones(theta.shape))
-        post_plot, = plt. plot(theta, np.ones(theta.shape), 'green')
+        #post_plot, = plt. plot(theta, np.ones(theta.shape), 'green')
         ax.set_ylim(0, 1)
         ax.set_xlim(0, np.pi)
         if DO_BEAMFORM:
@@ -280,7 +282,7 @@ def localize():
                 # Process dfts from windowed segments of input
                 dfts = stft.getDFTs()
                 rffts = mat.to_all_real_matlab_format(dfts)
-                d = localizer.get_distribution_real(rffts[:, :, 0], 'gcc') # Use first hop
+                d, energy = localizer.get_distribution_real(rffts[:, :, 0], 'gcc') # Use first hop
                 post = localizer.get_distribution(rffts[:, :, 0])
                 ind = np.argmax(d)
                 u = 1.5 * direcs[:, ind]  # Direction of arrival
@@ -303,7 +305,7 @@ def localize():
                         if np.max(post) > 1:
                           post /= np.max(post)
                         pol_plot.set_ydata(d[0, :])
-                        post_plot.set_ydata(post[0, :])
+                        #post_plot.set_ydata(post[0, :])
                         if DO_BEAMFORM:
                             # Get beam plot
                             freq = 1900.  # Hz

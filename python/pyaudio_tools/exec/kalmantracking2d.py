@@ -35,19 +35,19 @@ NUM_CHANNELS_OUT = 1
 N_THETA = 100
 N_PHI = 1
 PLOT_POLAR = False
-PLOT_CARTES = False
+PLOT_CARTES = True
 PLOT_2D = False
 EXTERNAL_PLOT = False
 PLAY_AUDIO = False
-DO_BEAMFORM = False
+DO_BEAMFORM = True
 RECORD_AUDIO = False
-VIDEO_OVERLAY = True
+VIDEO_OVERLAY = False
 OUTFILE_NAME = 'nonbeamformed.wav'
 TIMEOUT = 1
 # Source planes and search space
 SOURCE_PLANE_NORMAL = np.array([0, -1, 0])
 SOURCE_PLANE_UP = np.array([0, 0 , 1])
-SOURCE_PLANE_OFFSET = np.array([0, 1, 0])
+SOURCE_PLANE_OFFSET = np.array([0, 4, 0])
 SOURCE_LOCATION_COV = np.array([[1, 0], [0, .01]])
 MIC_LOC = np.array([0, 0, 0])
 CAMERA_LOC = np.array([0, 0, 0])
@@ -59,14 +59,14 @@ STATE_TRANSITION_MAT = np.array([[1, 0, 0, TIME_STEP, 0, 0],
                                  [0, 0, 0, 0, 1, 0],
                                  [0, 0, 0, 0, 0, 1]])
 #STATE_COV_MAT = 5 * np.identity(6, consts.REAL_DTYPE)
-STATE_COV_MAT = np.array([[.1, 0, 0, 0, 0, 0],
+STATE_COV_MAT = np.array([[.01, 0, 0, 0, 0, 0],
                           [0, .01, 0, 0, 0, 0],
                           [0 ,0, .01, 0, 0, 0],
                           [0, 0, 0, .01, 0, 0],
                           [0, 0, 0, 0, .01, 0],
                           [0, 0, 0, 0, 0, .01]])
 EMISSION_MAT = np.hstack((np.identity(3), np.zeros((3,3))))
-EMISSION_COV = np.array([[5, 0, 0], [0, .1, 0], [0, 0, 1]], dtype=consts.REAL_DTYPE)
+EMISSION_COV = np.array([[90, 0, 0], [0, .1, 0], [0, 0, 1]], dtype=consts.REAL_DTYPE)
 MIC_FORWARD = np.array([0, 1, 0])
 MIC_ABOVE = np.array([0, 0, 1])
 
@@ -89,7 +89,7 @@ in_buf = AudioBuffer(length=4 * FRAMES_PER_BUF, n_channels=NUM_CHANNELS_IN)
 out_buf = AudioBuffer(length=4 * FRAMES_PER_BUF, n_channels=NUM_CHANNELS_OUT)
 
 # Setup record buffer
-N_SECS_RECORD = 20
+N_SECS_RECORD = 40
 N_RECORD_FRAMES = N_SECS_RECORD * SAMPLE_RATE
 record_buf = AudioBuffer(length=N_RECORD_FRAMES, n_channels=NUM_CHANNELS_OUT)
 
@@ -196,12 +196,12 @@ def setup_video_handle(m, n):
     :param n: video width
     Returns image plot handle, overlay plot handle
     """
-    fig = plt.figure()
+    fig = plt.figure(figsize=(12, 8))
     ax = fig.add_subplot(111)
     implot_h = ax.imshow(np.ones((m, n, 3)))
     # Setup distribution plot handle
     theta_space = np.linspace(0, n, N_THETA)
-    plot_h, = ax.plot(theta_space, np.zeros((N_THETA)), 'r', lw=5)
+    plot_h, = ax.plot(theta_space, np.zeros((N_THETA)), 'b', lw=5)
     ax.set_xlim(n, 0)
     ax.set_ylim(m, 0)
     return implot_h, plot_h
@@ -228,7 +228,7 @@ def localize():
     source_plane = OrientedSourcePlane(SOURCE_PLANE_NORMAL, 
                                        SOURCE_PLANE_UP,
                                        SOURCE_PLANE_OFFSET)
-    space = SearchSpace(MIC_LOC, CAMERA_LOC, [source_plane])
+    space = SearchSpace(MIC_LOC, CAMERA_LOC, [source_plane], MIC_FORWARD, MIC_ABOVE)
                                        
     # Setup pyaudio instances
     pa = pyaudio.PyAudio()
@@ -319,13 +319,17 @@ def localize():
         if DO_BEAMFORM:
             pol_beam_plot, = plt.plot(theta, np.ones(theta.shape), 'red')
     if PLOT_2D:
-        fig_2d = plt.figure()
+        fig_2d = plt.figure(figsize=(10, 6))
         ax_2d = fig_2d.add_subplot(111)
-        n_past_samples = 100
+        n_past_samples = 200
         sample_mat = np.zeros((N_THETA, n_past_samples))
         estimate_mat = np.zeros((n_past_samples,))
-        plot_2d = ax_2d.imshow(sample_mat, vmin=0, vmax=.03)
-        state_est_plot, = plt.plot(estimate_mat, 'red')
+        estimate_mat2 = np.zeros((n_past_samples,))
+        plot_2d = ax_2d.imshow(sample_mat, vmin=0, vmax=.03, cmap='bone')
+        state_est_plot2, = plt.plot(estimate_mat, 'r', lw=3)
+        state_est_plot, = plt.plot(estimate_mat, 'b', lw=3)
+        ax_2d.set_ylim(0, N_THETA)
+        ax_2d.set_xlim(0, n_past_samples)
         plt.show(block=False)
     if VIDEO_OVERLAY:
         vc = cv2.VideoCapture(0)
@@ -381,8 +385,10 @@ def localize():
                         post_plot.set_ydata(post[0, :])
                         if DO_BEAMFORM:
                             # Get beam plot
-                            freq = 1900.  # Hz
-                            response = beamformer.get_beam(align_mat, align_mats, rffts, freq)
+                            freq = 2500.  # Hz
+                            response = beamformer.get_beam(
+                                align_mat, align_mats, rffts, freq
+                            )
                             response = localizer.to_spher_grid(response)
                             if np.max(response) > 1:
                                 response /= np.max(response)
@@ -399,7 +405,12 @@ def localize():
                         maxind = np.argmax(post)
                         estimate_mat[:-1] = estimate_mat[1:]
                         estimate_mat[-1] = maxind
+                        # Get standard estimate
+                        maxind2 = np.argmax(dist)
+                        estimate_mat2[:-1] = estimate_mat2[1:]
+                        estimate_mat2[-1] = maxind2
                         plot_2d.set_array(sample_mat)
+                        state_est_plot2.set_ydata(estimate_mat2)
                         state_est_plot.set_ydata(estimate_mat)
                         plt.draw()
                     if VIDEO_OVERLAY:
@@ -407,7 +418,7 @@ def localize():
                         dist = d - np.min(d)
                         dist = dist / np.max(dist + consts.EPS)
                         _, cvimage = vc.read()
-                        overlay_distribution(video_handle, video_plot, cvimage, post[::-1])
+                        overlay_distribution(video_handle, video_plot, cvimage, dist[::-1])
                         plt.draw()
                 count += 1
 

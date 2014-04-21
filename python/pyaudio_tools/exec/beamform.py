@@ -29,10 +29,10 @@ WINDOW_LENGTH = FFT_LENGTH
 HOP_LENGTH = WINDOW_LENGTH / 2
 NUM_CHANNELS_IN = 7
 NUM_CHANNELS_OUT = 1
-N_THETA = 20
+N_THETA = 40
 N_PHI = N_THETA * 1 / 2  # 3 / 4
-PLOT_CARTES = False
-PLOT_POLAR = True
+PLOT_CARTES = True
+PLOT_POLAR = False
 EXTERNAL_PLOT = False
 PLAY_AUDIO = False
 DO_BEAMFORM = True
@@ -261,7 +261,7 @@ def localize():
                 # Process dfts from windowed segments of input
                 dfts = stft.getDFTs()
                 rffts = mat.to_all_real_matlab_format(dfts)
-                d = localizer.get_distribution_real(rffts[:, :, 0])
+                d, energy = localizer.get_distribution_real(rffts[:, :, 0])
                 ind = np.argmax(d)
                 u = 1.5 * direcs[:, ind]  # Direction of arrival
 

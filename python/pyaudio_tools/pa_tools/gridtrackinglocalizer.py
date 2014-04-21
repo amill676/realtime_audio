@@ -31,7 +31,7 @@ class GridTrackingLocalizer(TrackingLocalizer):
     self._tracking_plane = self._planes[0]
   
   def get_distribution(self, rffts):
-    d = self.get_distribution_real(rffts, 'gcc')
+    d, energy = self.get_distribution_real(rffts, 'gcc')
     #d = np.arange(self._grid_size, dtype=consts.REAL_DTYPE)
     #d = np.hstack((100 * np.ones((5,)), np.ones((self._grid_size-5,))))
     print "before: " + str(self._posterior_grid)

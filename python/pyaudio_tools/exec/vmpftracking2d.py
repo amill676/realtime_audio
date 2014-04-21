@@ -42,7 +42,7 @@ PLAY_AUDIO = False
 DO_BEAMFORM = False
 RECORD_AUDIO = False
 VIDEO_OVERLAY = False
-SAVE_FRAMES = True
+SAVE_FRAMES = False
 PLOT_PARTICLES = True
 OUTFILE_NAME = 'nonbeamformed.wav'
 TIMEOUT = 1
@@ -56,7 +56,7 @@ CAMERA_LOC = np.array([0, 0, 0])
 TIME_STEP = .1
 MIC_FORWARD = np.array([0, 1, 0])
 MIC_ABOVE = np.array([0, 0, 1])
-STATE_KAPPA = 50
+STATE_KAPPA = 40  
 OUTLIER_PROB = .9
 OBS_KAPPA = 50
 N_PARTICLES = 80
@@ -252,7 +252,7 @@ def localize():
     source_plane = OrientedSourcePlane(SOURCE_PLANE_NORMAL, 
                                        SOURCE_PLANE_UP,
                                        SOURCE_PLANE_OFFSET)
-    space = SearchSpace(MIC_LOC, CAMERA_LOC, [source_plane])
+    space = SearchSpace(MIC_LOC, CAMERA_LOC, [source_plane], MIC_FORWARD, MIC_ABOVE)
                                        
     # Setup pyaudio instances
     pa = pyaudio.PyAudio()
@@ -272,7 +272,17 @@ def localize():
                                       n_particles=N_PARTICLES,
                                       state_kappa=STATE_KAPPA,
                                       observation_kappa=OBS_KAPPA,
-                                      outlier_prob=OUTLIER_PROB,
+                                      outlier_prob=.5,
+                                      dft_len=FFT_LENGTH,
+                                      sample_rate=SAMPLE_RATE,
+                                      n_theta=N_THETA,
+                                      n_phi=N_PHI)
+    localizer3 = VonMisesTrackingLocalizer(mic_positions=mic_layout,
+                                      search_space=space,
+                                      n_particles=N_PARTICLES,
+                                      state_kappa=STATE_KAPPA,
+                                      observation_kappa=OBS_KAPPA,
+                                      outlier_prob=.99,
                                       dft_len=FFT_LENGTH,
                                       sample_rate=SAMPLE_RATE,
                                       n_theta=N_THETA,
@@ -326,8 +336,9 @@ def localize():
     if PLOT_PARTICLES:
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        particle_plots, estimate_plot = setup_particle_plot(ax, 'b', 'r', .3)
-        particle_plots2, estimate_plot2 = setup_particle_plot(ax, 'k', 'r', .7)
+        particle_plots, estimate_plot = setup_particle_plot(ax, 'b', 'r', .2)
+        particle_plots2, estimate_plot2 = setup_particle_plot(ax, 'k', 'r', .5)
+        particle_plots3, estimate_plot3 = setup_particle_plot(ax, 'g', 'r', .8)
         plt.show(block=False)
     if PLOT_POLAR:
         fig = plt.figure()
@@ -395,12 +406,16 @@ def localize():
                 d, energy = localizer.get_distribution_real(rffts[:, :, 0], 'gcc') # Use first hop
                 post = localizer.get_distribution(rffts[:, :, 0])
                 post2 = localizer2.get_distribution(rffts[:, :, 0])
+                post3 = localizer3.get_distribution(rffts[:, :, 0])
                 w = np.asarray(post.weights)
                 ps = np.asarray(post.particles)
+                estimate = w.dot(ps)
                 w2 = np.asarray(post2.weights)
                 ps2 = np.asarray(post2.particles)
-                estimate = w.dot(ps)
                 estimate2 = w2.dot(ps2)
+                w3 = np.asarray(post3.weights)
+                ps3 = np.asarray(post3.particles)
+                estimate3 = w3.dot(ps3)
                 #if energy < 500:
                     #continue
 
@@ -415,6 +430,7 @@ def localize():
                     if PLOT_PARTICLES:
                         plot_particles(particle_plots, estimate_plot, ps, w, estimate)
                         plot_particles(particle_plots2, estimate_plot2, ps2, w2, estimate2)
+                        plot_particles(particle_plots3, estimate_plot3, ps3, w3, estimate3)
                         plt.draw()
                         
                     if PLOT_POLAR or PLOT_CARTES:

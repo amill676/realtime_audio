@@ -245,7 +245,7 @@ def localize():
                 # Process dfts from windowed segments of input
                 dfts = stft.getDFTs()
                 rffts = mat.to_all_real_matlab_format(dfts)
-                d = localizer.get_distribution_real(rffts[:, :, 0], 'gcc') # Use first hop
+                d, energy = localizer.get_distribution_real(rffts[:, :, 0], 'gcc') # Use first hop
                 print d
                 print "SIZE: " + str(d.shape)
                 ind = np.argmax(d)
