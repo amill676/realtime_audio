@@ -133,9 +133,16 @@
         \micjdx}\of{\micdelay_\micjdx\of{\dir} - \micdelay_\micidx\of{\dir}}}
       \end{equation}
       where $\shape\of{x} = x^k$ is a likelihood shaping function, used to 
-      sharpen peaks and reduce sidelobes \cite{ward2002particle}. 
-
-      TODO FIGURES
+      sharpen peaks and reduce sidelobes \cite{ward2002particle}.  
+      
+      \begin{figure}[h]
+        \centering
+        \includegraphics[width=\textwidth]{figures/gcc_likelihoods.png}
+        \caption{Normalized GCC Values for various values of $k$ in the shaping 
+          function $\shape\of{x} = x^k$. We see the speak sharpen as the value 
+        of $k$ increases from 1 to 5.}
+        \label{fig:gcc_shapes}
+      \end{figure}
 
     \subsection{Beamforming and SRP-PHAT}
       The method described is also sometimes referred to as SRP-PHAT (where SRP 
