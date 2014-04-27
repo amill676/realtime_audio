@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 
 import pa_tools.constants as consts
 import mattools.mattools as mat
+import pa_tools.plottools as plotting
 from pa_tools.audiohelper import AudioHelper
 from pa_tools.audiobuffer import AudioBuffer
 from pa_tools.stftmanager import StftManager
@@ -76,6 +77,8 @@ MIC_ABOVE = np.array([0, 0, 1])
 
 # Setup printing
 np.set_printoptions(precision=2, suppress=True)
+# Setup figure size
+plotting.setup_halfpage_figsize()
 
 # Setup mics
 mic_layout = np.array([[.03, 0], [-.01, 0], [.01, 0], [-.03, 0]])
@@ -328,11 +331,13 @@ def localize():
             pol_beam_plot, = plt.plot(theta, np.ones(theta.shape), 'red')
     if PLOT_CARTES:
         fig = plt.figure()
-        ax = fig.add_subplot(111)
+        ax = plotting.get_halfpage_axis(fig)
+        #ax = fig.add_subplot(111)
         plt.show(block=False)
         # Setup space for plotting in new coordinates
         spher_coords = localizer.get_spher_directions()
         theta = spher_coords[1, :]
+        theta = np.linspace(0, 1, theta.shape[0])
         gcc_plots = []
         gcc_shaping_vals = [1, 2, 3, 4, 5]
         for i in gcc_shaping_vals:
@@ -341,9 +346,9 @@ def localize():
         pol_plot, = plt.plot(theta, np.zeros(theta.shape))
         post_plot, = plt. plot(theta, np.zeros(theta.shape), 'green')
         ax.set_ylim(0, 1.2)
-        ax.set_xlim(0, np.pi)
-        ax.set_xlabel('Theta')
-        ax.set_ylabel('Normalized GCC')
+        ax.set_xlim(0, 1)  # Normalized
+        #ax.set_xlabel('Angle $\left(\\frac{1}{\pi}\\right)$')
+        #ax.set_ylabel('Normalized GCC')
         if DO_BEAMFORM:
             pol_beam_plot, = plt.plot(theta, np.ones(theta.shape), 'red')
     if PLOT_2D:
