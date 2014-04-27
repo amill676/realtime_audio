@@ -1,0 +1,99 @@
+\documentclass{uiucecethesis09} 
+
+\usepackage{standalone} 
+
+\begin{document}
+\chapter{Introduction}
+
+This chapter will discuss some of the motivation behind this project, as well as
+the goals and distinguishing features of the project. The value of automated
+lecture recording as a whole will be described, and an overview will be given of
+the techniques to be presented in the remainder of the thesis.
+
+\section{Overview} 
+
+  \subsection{Motivation}
+
+    In the last decade or so, the availability of online educational resources
+    has increased significantly. With the launch of MIT OpenCourseWare over 10
+    years ago and the now growing popularity of Massive Open Online Courses, the
+    internet has become a substantive educational outlet. Additionally, much of
+    this media is comprised of lectures given in classrooms or auditoriums to
+    real audiences, that have also been recorded and uploaded. Because of this,
+    systems for efficiently recording and processing such lectures have become
+    more and more important.
+
+    Yet the benefits of such systems can be seen even for students who attend the
+    schools holding the lectures. In fact, many times such students are the main
+    consideration for these systems, since the availability of a lecture online
+    allows students to review that lecture at a later time \cite{bibs}. This can
+    free students from the burden of capturing all the material during the actual
+    lecture and may allow them to focus more heavily on the concepts being discussed
+    rather than writing it down for review later.  
+
+    As it stands, there is a lot that goes into processing many of the open lecture
+    resources available online. In addition to ensuring a quality recording of the
+    lecture, there is a certain amount of editing and post-processing that usually
+    must occur \cite{passivecapture}. Some of this is to improve the flow of the
+    material for the end viewer, but some of this may also involve dealing with
+    mistakes made by those responsible for filming the lectures. In fact, it has
+    been shown that even systems that are not fully automated enjoy better quality
+    filming when the filming is attempted automatically and merely monitored by an
+    operator (TODO cite).
+
+    In addition to the time saving qualities of automated filming, such techniques
+    can also provide substantial cost savings. While the cost of the necessary
+    technology for these systems is continually decreasing, the cost of employing a
+    person to record and edit the lectures is not. Because of this, prices reported
+    for upkeep in such processes can be quite high \cite{Liu:2001}, making any
+    opportunity for automation an opportunity for savings as well.  Beyond this,
+    because automation can lower costs of producing such media, certain material may
+    now be recorded and made available that would not have previously warranted it
+    \cite{Bianchi:AVP}. This can help to continue the growth of online media and
+    further propel the positive affects of such efforts. 
+
+  \subsection{Focus}
+    
+    Automatic lecture monitoring as it has been described clearly can involve
+    many separate phases. First the lecturer must take any necessary actions to
+    initiate the lecture recording. Depending on the system, this may involve
+    wearing a certain device to enable tracking, setting up the proper recording
+    equipment, or simply pressing some button on a provided interface to
+    initiate an automated process. Much of this depends on whether the system is
+    designed to be passive or not - that is, whether or not the recorder needs
+    to act any differently simply because the lecture is being recorded
+    \cite{passivecapture}. 
+
+    In the next step the lecture must actually be recorded -- both in video and
+    audio. Again, depending on whether the system is a passive recording system or
+    not, this can range from requiring no additional action, to requiring the
+    lecturer to take certain actions throughout the presentation to ensure proper
+    execution of the monitoring system.
+
+    Finally, there is often a certain amount of post-processing that occurs in order
+    to refine the recording.  This can include aligning supplementary materials with
+    the video recording, or perhaps slicing up the recording into smaller clips.
+    Some systems aim to do this automatically \cite{passivecapture}, but many do
+    not.
+
+    Despite the extent of this entire process, in this work we will focus solely on
+    the first aspect of this process: the recording of the speaker. More
+    specifically, the focus will be on passive recording techniques that utilize
+    microphone array processing for locating and tracking the speaker. A camera will
+    then be used to film the speaker once the correct location has been determined. 
+
+    In most automated lecture capture systems, computer vision methods are used 
+    on the video feeds to track the speaker \cite{Bianchi:AVP},
+    \cite{Zhang05anautomated}, \cite{chou:2010}, \cite{Liu:2001}. Microphone arrays
+    are then used to locate audience members asking questions, but are not involved
+    in the tracking of speakers on stage \cite{Liu:2001}, \cite{Zhang05anautomated}.
+    However, microphone array processing techniques could allow for localization of
+    the speaker as well, and could help to add robustness to a video tracking system
+    by providing additional information.  Moreover, since many systems employing
+    computer vision tracking methods have at least two separate cameras -- one for
+    following the speaker and one for recording the entire stage to detect movement
+    \cite{Bianchi:AVP}, \cite{Liu:2001} -- by using a microphone array to perform
+    much, if not all, of the speaker tracking it could be possible to eliminate one
+    camera and cut down on the costs of such systems.
+
+\end{document}

@@ -1,0 +1,197 @@
+\documentclass{uiucecethesis09}
+\usepackage{mythesis}
+
+\begin{document}
+\chapter{Direction of Arrival Estimation and Stateless Tracking}
+  
+  This chapter will explore the direction of arrival estimation methods as they 
+  were implemented in our system. It will also describe how these estimates were 
+  used to perform stateless tracking of speakers. By stateless, we refer to the 
+  lack of a state dynamics model for the system or the maintenance of any such 
+  external state that would allow for a prediction of the next state. We 
+  nevertheless explore methods for smoothing our tracking estimates using 
+  alternative approaches.
+
+  \section{Direction of Arrival Estimation}
+    We first consider methods for estimating the direction of arrival (DOA) of a 
+    sound. As described in \secref{sec:setup}, this equates to estimating the 
+    TDOA values given by \eqref{eq:TDOA}.
+    \subsection{GCC-PHAT}
+      The first method we describe is the Generalized Cross Correlation method 
+      \cite{knapp1976generalized}, \cite{brandstein1997robust}, 
+      \cite{benesty2010microphone}.
+      We seek to find
+      \begin{equation} \label{eq:gcc_estimate}
+        \hat{\micdelay}_{\micidx, \micjdx} = \argmax_{\micdelay}{\gcc_{\micidx, 
+        \micjdx}\of{\micdelay}} \end{equation}
+      where
+      \begin{align} \label{eq:gcc_dfn}
+        \gcc_{\micidx,\micjdx}\of{\micdelay} &= 
+        \int\limits_{-\infty}^{\infty}{\gccweightf\Micrec_\micidx^*\offreq\Micrecf{\micjdx} 
+        e^{j2\pi\freq\micdelay}} d\freq\\
+        %&= \int\limits_{\time^\prime}^{\time^{\prime} + \window} 
+        %\micrec_\micidx\of{\time - \micdelay}\micrect{\micjdx} d\time \\
+      \end{align}
+      is the generalized cross correlation (GCC) function between microphone 
+      $\micidx$ and microphone $\micjdx$. Here $\gccweightf$ is a spectrum 
+      weighting function that can be used to scale the signal spectra and 
+      improve the accuracy of the resulting TDOA estimate. This can be 
+      interpreted as an additional set of filters through which the signals pass 
+      that can help shape them for better estimation 
+      \cite{brandstein1997robust}, \cite{knapp1976generalized}.  We see that for 
+      a unity weighting function the GCC is equivalent to the standard cross 
+      correlation function
+
+      \begin{align}
+        \cc_{\micidx, \micjdx}\of{\micdelay} &= \infint 
+        \Micrec_\micidx^*\offreq\Micrecf{\micjdx} e^{j2\pi\freq\micdelay} 
+        d\freq\\
+        &= \infint \micrec_\micidx\of{\time - \micdelay} \micrect{\micjdx} 
+        d\time 
+        \label{eq:cc}
+      \end{align}
+
+      A variety of weighting functions are available 
+      \cite{benesty2010microphone}, \cite{knapp1976generalized}, 
+      \cite{brandstein1997robust}, however one of the most popular is the phase 
+      transform (PHAT) weighting
+      \begin{equation}
+        \gccweight_{\text{PHAT}}\of{\freq}= 
+        \frac{1}{\abs{\Micrec_\micidx^*\offreq\Micrecf{\micjdx}}}
+        \label{eq:phat}
+      \end{equation}
+      which has been shown to be quite robust in noisy and reverberant 
+      environments \cite{omologo93useof}. The combination of the generalized 
+      cross correlation method with the phase transform weighting is referred to 
+      as GCC-PHAT.
+
+    \subsection{Point Estimates}
+      Using the GCC-PHAT method, we can obtain a set of $\tdoaest_{\micidx, 
+      \micjdx}$ values by searching for a peak in the resulting GCC function of 
+      each necessary microphone pair. This set comprises our TDOA estimates.  
+      From this, using \eqref{eq:TDOA} we can set up the following system.
+      \begin{equation}
+      \frac{1}{\speedsound} \begin{bmatrix} \micpos_1 - \micpos_2 \\ \micpos_1 - 
+        \micpos_3 \\ \ \vdots \\ \micpos_1 - \micpos_\nmics \end{bmatrix} 
+      \hat{\srcdir} = \begin{bmatrix} \tdoaest_{2} \\
+        \tdoaest_{3} \\ \vdots \\ \tdoaest_{\nmics}\end{bmatrix}
+      \label{eq:gcc_least_squares}
+      \end{equation}
+      with
+      \begin{equation}
+        \tdoaest_{i} = \tdoaest_{1,i}
+      \end{equation}
+      to be consistent with notation in \eqref{eq:TDOA}. Note that we only 
+      consider delays between microphone 1 and all others since other delays 
+      become linearly dependent. The solution may be solvable if the number of 
+      microphones is one more than the number of dimensions in the search space 
+      and the microphones have an appropriate geometry CITE TODO.  Otherwise we 
+      must use a least squares solution.
+
+      However, this method has a few negatives. First off, by doing this we will 
+      be getting point estimates for the direction of arrival with no measure of 
+      likelihood. Therefore, we are making a hard decision about our estimate and 
+      if this estimate is used in a larger system, we have made a great 
+      commitment at an early stage. This should be avoided if at all possible.  
+      Secondly, to actually implement this method we must discretize the 
+      $\micdelay$ search space. In doing so, we are inherently discretizing the 
+      search space of $\hat{\srcdir}$, which may end up leading to a 
+      discretization that is inefficient or ineffective for our purposes.
+
+      A remedy for the first problem could be to aggregate the correlation 
+      values for each combination of discrete $\micdelay$ values. Then the 
+      magnitude of these correlation values could be used as a likelihood score 
+      as we will discuss later.  However, this would be extremely expensive 
+      computationally, and in doing so we would be considering many infeasible 
+      directions.  Yet, despite this problem, this method is not far off.  In 
+      fact if we perform a similar calculation for only combinations of 
+      $\micdelay_\micidx$ values that correspond to feasible search directions, 
+      we can rectify both of the mentioned problems.
+
+    \subsection{Likelihood Approach}
+      As mentioned, the goal is to obtain a likelihood for each feasible 
+      direction of arrival. We use methods similar to \cite{dmochowski2008fast}, 
+      \cite{DiBiase00ahigh-accuracy}. Unfortunately the space of feasible 
+      direction of arrivals is continuous and while attempts to create 
+      continuous likelihood models over the search space based on TDOA estimates 
+      exist \cite{brandstein1997closed}, we chose to instead discretize the 
+      search space. By sampling our search space, we can now determine exactly 
+      which TDOAs are of interest.  That is, for each feasible source direction 
+      $\dir$ we can calculate $\micdelay_\micidx\of{\dir}$ for any microphone 
+      $\micidx$.  We then need only compute the correlation values:
+      \begin{align}
+      \gcc_{\micidx, \micjdx}\of{\micdelay_\micjdx\of{\dir} - 
+      \micdelay_\micidx\of{\dir}} &= \infint \gccweightf 
+      \Micrec_\micidx^*\offreq\Micrecf{\micjdx}
+      e^{j2\pi\freq\left(\micdelay_\micjdx\of{\dir} - 
+      \micdelay_\micidx\of{\dir}\right)} d\freq \\
+      \end{align}
+      Now to get a likelihood score we average across the different channel 
+      pairs, giving
+      \begin{equation}
+        \lhood_{\text{GCC}}\of{\dir} = \pairsum\shape\of{\gcc_{\micidx, 
+        \micjdx}\of{\micdelay_\micjdx\of{\dir} - \micdelay_\micidx\of{\dir}}}
+      \end{equation}
+      where $\shape\of{x} = x^k$ is a likelihood shaping function, used to 
+      sharpen peaks and reduce sidelobes \cite{ward2002particle}. 
+
+      TODO FIGURES
+
+    \subsection{Beamforming and SRP-PHAT}
+      The method described is also sometimes referred to as SRP-PHAT (where SRP 
+      stands for Steered Response Power)  when the PHAT weighting function is 
+      used to calculate the GCC \cite{dmochowski2008fast}.  This results from 
+      the fact that we are calculating the energy in the scaled Crosspower 
+      spectrum \cite{omologo93useof} after steering the array in each feasible 
+      direction $\dir$. This suggests that this method can be viewed in a 
+      beamforming context.
+
+      Consider using a delay and sum beamformer to steer the signal in each 
+      feasible direction $\dir$ and then taking the power of the corresponding 
+      signal. 
+
+      \begin{align}
+        \lhood_{\text{DS}}\of{\dir} &= \infint \left[\micsum 
+        \micrec_\micidx\of{\time + \micdelay_\micidx\of{\dir}} \right]^2 d\time 
+        \\
+        &= \micsum \micsumk{\micjdx} \infint \micrec_\micidx\of{\time + 
+          \micdelay_\micidx\of{\dir}} \micrec_\micjdx\of{\time + 
+            \micdelay_\micjdx\of{\dir}} d\time \\
+        &= \micsum \micsumk{\micjdx} \infint \micrec_\micidx\of{\time + 
+          \micdelay_\micidx\of{\dir}-\micdelay_\micjdx\of{\dir} } 
+          \micrec_\micjdx\oftime d\time
+        \label{eq:srp_phat} \\
+        &= \micsum \micsumk{\micjdx} \infint \Micrec_\micidx^*\offreq 
+        \Micrecf{\micjdx} e^{j2\pi\freq\left(\micdelay_\micjdx\of{\dir} - 
+        \micdelay_\micidx\of{\dir}\right)} d\freq \\
+        &= 2\lhood_{\text{GCC}}\of{\dir} + \micsum \infint 
+        \Micrec_\micidx^*\offreq\Micrecf{\micidx} d\freq
+      \end{align}
+
+      We see that if we use $\shape\of{x} = x$ and add in a weighting function 
+      $\gccweightf$ we get that the result is equal to our earlier likelihood 
+      plus the total signal energy. It can be shown that these two likelihood 
+      scores are closely related to a Bayesian likelihood of the signal given 
+      the prospective direction \cite{Birchfield02fastbayesian}.
+
+      Just as a spectrum weighting function $\gccweightf$ was added with the GCC 
+      method, a weighting function for combining frequencies can be added here . 
+      While there again are various weighting functions, the phase transform is 
+      often used, leading to the denomination of this method as SRP-PHAT 
+      \cite{DiBiase00ahigh}. There also exist analogous SRP algorithms for 
+      beamforming methods other than delay and sum.  Good coverage of these 
+      methods is given in \cite{tashev2009sound}
+      TODO FIGURE
+
+  \section{Tracking}
+    \subsection{Raw DOA Estimates}
+      The most obvious
+        
+      
+
+
+
+
+
+
+\end{document}
