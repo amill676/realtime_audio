@@ -97,6 +97,7 @@ class VonMisesTrackingLocalizer(TrackingLocalizer):
 
     # Do particle filtering ourselves...
     self._posterior = EmpPdf(self._init_distribution.samples(self._n_particles))
+    self._estimate = self._get_estimate()
     self._count = 0
 
     #self._particle_filter = pb.ParticleFilter(self._n_particles, 
@@ -138,26 +139,42 @@ class VonMisesTrackingLocalizer(TrackingLocalizer):
       self._posterior.particles[i] = \
         self._state_distribution.sample(self._posterior.particles[i])
       # recompute ith weight:
-      # log likelihood obs came from state (not from outlier)
+      # Get likelihoods of classes p(y_t|c_j,x_t) for each class c_j
       state_ll = self._obs_distribution.eval_log(yt, self._posterior.particles[i]) 
-      state_post = np.log(1 - self._outlier_prob) + state_ll
       outlier_ll = self._outlier_distribution.eval_log(yt)
-      outlier_post = np.log(self._outlier_prob) + outlier_ll
-      log_norm_const = np.log(np.exp(state_post) + np.exp(outlier_post))
-      eta_state = state_post - log_norm_const
-      eta_outlier = outlier_post - log_norm_const
-      weight_update = (np.exp(state_ll + eta_state) + np.exp(outlier_ll + eta_outlier))
-      self._posterior.weights[i] *= weight_update
+      # Now find p(c_j|x_t) = p(x_t|c_j)p(c_j) / p(x_t) for each class c_j
+      # First compute p(x_t, c_j) = p(x_t|c_j)p(c_j)
+      state_particle_log_prob = \
+        self._obs_distribution.eval_log(self._posterior.particles[i], \
+                self._estimate) + np.log(1 - self._outlier_prob)
+      outlier_particle_log_prob = \
+        self._outlier_distribution.eval_log(self._posterior.particles[i]) \
+                + np.log(self._outlier_prob)
+      # Now compute p(x_t) = \sum_j p(x_t, c_j)
+      total_particle_log_prob = np.log(np.exp(state_particle_log_prob) + \
+                                np.exp(outlier_particle_log_prob))
+      # Finally compute the actual posteriors p(c_j|x_t)
+      state_class_post = state_particle_log_prob - total_particle_log_prob
+      outlier_class_post = outlier_particle_log_prob - total_particle_log_prob
+      # Now compute total likelihood 
+      # p(y_t|x_t) = sum_j p(y_t,c_j|x_t) = sum_j p(y_t|c_j,x_t)p(c_j|x_t)
+      total_likelihood = np.exp(state_ll + state_class_post) + \
+                         np.exp(outlier_ll + outlier_class_post)
+      self._posterior.weights[i] *= total_likelihood
       #print "state: %f, outlier: %f, update: %f" %(eta_state, eta_outlier, weight_update)
-      #self._posterior.weights[i] *= \
-      #  np.exp(self._obs_distribution.eval_log(yt, self._posterior.particles[i]))
     # assure that weights are normalised
     self._posterior.normalise_weights()
+    self._estimate = self._get_estimate()
 
   def _get_effective_n_dimensions(self):
     if self._n_phi == 1:
       return 2
     return self._n_dimensions
+
+  def _get_estimate(self):
+      w = np.asarray(self._posterior.weights)
+      parts = np.asarray(self._posterior.particles)
+      return w.dot(parts)
   
   def _use_outlier_distribution(self):
     return self._outlier_prob > 0
