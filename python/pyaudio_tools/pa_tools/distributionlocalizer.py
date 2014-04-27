@@ -64,7 +64,7 @@ class DistributionLocalizer(AudioLocalizer):
     def get_uncond_distribution(self, rffts, method='gcc'):
         return self.get_distribution_real(rffts, method)
 
-    def get_distribution_real(self, rffts, method='gcc'):
+    def get_distribution_real(self, rffts, method='gcc', *args):
         """
         Get the posterior distribution of source locations over the search space
         given observed ffts. There are a few different methods for doing so. These
@@ -75,15 +75,18 @@ class DistributionLocalizer(AudioLocalizer):
             'gcc': Use the Generalized Cross Correlation Method
             'beam': Use the energy of a delay and sum beamform
             'mcc': Use cross correlation with all pairs of mics
+        :param args: optional arguments specific to the method chosen. For the 
+                     gcc method this can be used to specify the coefficient of
+                     the shaping function
         """
         
         energy = self._get_energy(rffts)
         if method == 'gcc':
-            distr = self._get_distribution_gcc(rffts)
+            distr = self._get_distribution_gcc(rffts, *args)
         if method == 'beam':
-            distr = self._get_distribution_beam(rffts)
+            distr = self._get_distribution_beam(rffts, *args)
         if method == 'mcc':
-            distr = self._get_distribution_mcc(rffts)
+            distr = self._get_distribution_mcc(rffts, *args)
         return distr, energy
 
     def _get_energy(self, rffts):
@@ -91,7 +94,11 @@ class DistributionLocalizer(AudioLocalizer):
         lowffts = rffts[:, :cutoff_index]
         return np.sum(np.sum(lowffts * lowffts.conj()))
 
-    def _get_distribution_gcc(self, rffts):
+    def _get_distribution_gcc(self, rffts, *args):
+        """
+        Get distribution using Generalized Cross Correlation - Phase 
+        Transform method (GCC-PHAT).
+        """
         cutoff_index = self._compute_cutoff_index()
         lowffts = rffts[:, :cutoff_index]  # Low pass filtered
         auto_corr = lowffts[0, :] * lowffts[1:, :].conjugate()
@@ -109,10 +116,15 @@ class DistributionLocalizer(AudioLocalizer):
                 shifted = auto_corr * self._lp_pos_shift_mats[:, :, i]
                 corrs[:, i] = shifted[:, 0] + 2 * \
                               np.sum(shifted[:, 1:-1], axis=1) + shifted[:, -1]
-        distr = np.maximum(np.sum(np.abs(corrs) ** 2, axis=0), consts.EPS)
+
+        # Shaping function \sum_i (mic_corr_i)^k
+        k = 2  # Defaul value of coefficient
+        if len(args) > 0:
+          k = float(args[0])  # coefficient for shaping function
+        distr = np.maximum(np.sum(np.abs(corrs) ** k, axis=0), consts.EPS)
         return distr
 
-    def _get_distribution_beam(self, rffts):
+    def _get_distribution_beam(self, rffts, *args):
         #freq = self.CUTOFF_FREQ-100
         #freq = 1500
         #freq_ind = int((freq / self._sample_rate) * (self._dft_len))
@@ -136,7 +148,7 @@ class DistributionLocalizer(AudioLocalizer):
         return distr
 
 
-    def _get_distribution_mcc(self, rffts):
+    def _get_distribution_mcc(self, rffts, *args):
         cutoff_index = self._compute_cutoff_index()
         lowffts = rffts[:, :cutoff_index]  # Low pass filtered
         auto_corr = np.empty((self._n_mic_pairs, cutoff_index), 

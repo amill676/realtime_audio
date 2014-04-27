@@ -4,6 +4,7 @@ import struct
 import threading
 import math
 import cv2
+import os.path
 
 import pyaudio
 import numpy as np
@@ -39,10 +40,13 @@ PLOT_CARTES = True
 PLOT_2D = False
 EXTERNAL_PLOT = False
 PLAY_AUDIO = False
-DO_BEAMFORM = True
+DO_BEAMFORM = False
 RECORD_AUDIO = False
 VIDEO_OVERLAY = False
 OUTFILE_NAME = 'nonbeamformed.wav'
+FIG_OUTFILE_BASENAME = 'gcclikelihood'
+FIG_DIRECTORY_NAME = 'figures'
+FIG_OUTFILE_NUMBER = 0  # Suffix for filename to avoid overwrites
 TIMEOUT = 1
 # Source planes and search space
 SOURCE_PLANE_NORMAL = np.array([0, -1, 0])
@@ -78,6 +82,7 @@ mic_layout = np.array([[.03, 0], [-.01, 0], [.01, 0], [-.03, 0]])
 # Track whether we have quit or not
 done = False
 switch_beamforming = False  # Switch beamforming from on to off or off to on
+save_fig = False  # For saving figure to file
 
 # Events for signaling new data is available
 audio_produced_event = threading.Event()
@@ -133,6 +138,7 @@ def process_dft_buf(buf):
 def check_for_quit():
     global done
     global switch_beamforming
+    global save_fig
     while True:
         read_in = raw_input()
         if read_in == "q":
@@ -141,7 +147,22 @@ def check_for_quit():
             break
         if read_in == "b":
             switch_beamforming = True
+        if read_in == "s":
+            save_fig = True
 
+def get_fig_name():
+    global FIG_OUTFILE_NUMBER
+    global FIG_DIRECTORY_NAME
+    global FIG_OUTFILE_BASENAME
+    if not os.path.exists('figures'):
+        os.makedirs(FIG_DIRECTORY_NAME)
+    filename = FIG_DIRECTORY_NAME + '/' + FIG_OUTFILE_BASENAME + \
+            str(FIG_OUTFILE_NUMBER) + '.png'
+    while os.path.exists(filename):
+        FIG_OUTFILE_NUMBER += 1
+        filename = FIG_DIRECTORY_NAME + '/' + FIG_OUTFILE_BASENAME + \
+                str(FIG_OUTFILE_NUMBER) + '.png'
+    return filename
 
 def print_dfts(dfts):
     print "Printing DFTS:"
@@ -224,6 +245,7 @@ def overlay_distribution(image_handle, plot_handle, cvimage, distr):
 def localize():
     global switch_beamforming
     global DO_BEAMFORM
+    global save_fig
     # Setup search space
     source_plane = OrientedSourcePlane(SOURCE_PLANE_NORMAL, 
                                        SOURCE_PLANE_UP,
@@ -299,23 +321,29 @@ def localize():
         # Setup space for plotting in new coordinates
         spher_coords = localizer.get_spher_directions()
         theta = spher_coords[1, :]
-        pol_plot, = plt.plot(theta, np.ones(theta.shape))
-        post_plot, = plt. plot(theta, np.ones(theta.shape), 'green')
+        pol_plot, = plt.plot(theta, np.zeros(theta.shape))
+        post_plot, = plt. plot(theta, np.zeros(theta.shape), 'green')
         ax.set_ylim(0, 1)
         if DO_BEAMFORM:
             pol_beam_plot, = plt.plot(theta, np.ones(theta.shape), 'red')
     if PLOT_CARTES:
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        ax.set_ylim(0, 1)
         plt.show(block=False)
         # Setup space for plotting in new coordinates
         spher_coords = localizer.get_spher_directions()
         theta = spher_coords[1, :]
-        pol_plot, = plt.plot(theta, np.ones(theta.shape))
-        post_plot, = plt. plot(theta, np.ones(theta.shape), 'green')
-        ax.set_ylim(0, 1)
+        gcc_plots = []
+        gcc_shaping_vals = [1, 2, 3, 4, 5]
+        for i in gcc_shaping_vals:
+            plot, = plt.plot(theta, np.zeros(theta.shape))
+            gcc_plots.append(plot)
+        pol_plot, = plt.plot(theta, np.zeros(theta.shape))
+        post_plot, = plt. plot(theta, np.zeros(theta.shape), 'green')
+        ax.set_ylim(0, 1.2)
         ax.set_xlim(0, np.pi)
+        ax.set_xlabel('Theta')
+        ax.set_ylabel('Normalized GCC')
         if DO_BEAMFORM:
             pol_beam_plot, = plt.plot(theta, np.ones(theta.shape), 'red')
     if PLOT_2D:
@@ -350,13 +378,24 @@ def localize():
                     DO_BEAMFORM = not DO_BEAMFORM
                     switch_beamforming = False
                     # Get data from the circular buffer
+                if save_fig:
+                    filename = get_fig_name()
+                    fig.savefig(filename, facecolor='white', edgecolor='none')
+                    print "Figure saved to %s" % filename
+                    save_fig = False
                 data = in_buf.read_samples(WINDOW_LENGTH)
                 # Perform an stft
                 stft.performStft(data)
                 # Process dfts from windowed segments of input
                 dfts = stft.getDFTs()
                 rffts = mat.to_all_real_matlab_format(dfts)
-                d, energy = localizer.get_distribution_real(rffts[:, :, 0], 'gcc') # Use first hop
+                gccs = []
+                for k in gcc_shaping_vals:
+                    d, energy = localizer.get_distribution_real(
+                            rffts[:, :, 0], 'gcc', k) # Use first hop
+                    gccs.append(d)
+                d, energy = localizer.get_distribution_real(rffts[:, :, 0], 'gcc', 1) # Use first hop
+
                 post = localizer.get_distribution(rffts[:, :, 0])
                 ind = np.argmax(d)
                 u = 1.5 * direcs[:, ind]  # Direction of arrival
@@ -376,13 +415,18 @@ def localize():
                         #dist -= np.min(dist)
                         dist = localizer.to_spher_grid(dist)
                         post = localizer.to_spher_grid(post) * 50
-                        #dist /= np.max(dist)
+                        dist /= np.max(dist)
                         if np.max(dist) > 1:
                           dist /= np.max(dist)
+                        #dist /= (np.sum(dist) + consts.EPS)
                         if np.max(post) > 1:
                           post /= np.max(post)
-                        pol_plot.set_ydata(dist[0, :])
-                        post_plot.set_ydata(post[0, :])
+                        #pol_plot.set_ydata(dist[0, :])
+                        #post_plot.set_ydata(post[0, :])
+                        for i, plot in enumerate(gcc_plots):
+                            gcc = gccs[i]
+                            gcc /= (np.max(gcc) + consts.EPS)
+                            plot.set_ydata(gccs[i])
                         if DO_BEAMFORM:
                             # Get beam plot
                             freq = 2500.  # Hz
