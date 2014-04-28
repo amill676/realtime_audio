@@ -50,7 +50,7 @@ class KalmanTrackingLocalizer(TrackingLocalizer):
     self._planes = self._search_space.get_planes()
     self._tracking_plane = self._planes[0]
   
-  def get_distribution(self, rffts):
+  def get_distribution(self, rffts, *args):
     # Predict
     state_pred = self._transition_mat.dot(self._state_estimate)
     cov_pred = \
@@ -58,7 +58,7 @@ class KalmanTrackingLocalizer(TrackingLocalizer):
       + self._transformed_state_cov
     # Update
     # Get observation
-    d, energy = self.get_distribution_real(rffts, 'gcc')
+    d, energy = self.get_distribution_real(rffts, *args)
     max_ind = np.argmax(d)
     obs = self._direction_to_plane_point(self._directions[:, max_ind])
     if obs is not None:

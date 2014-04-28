@@ -230,7 +230,7 @@ font.serif           : Times New Roman
 #axes.edgecolor      : black   # axes edge color
 axes.linewidth      : .5     # edge linewidth
 #axes.grid           : False   # display grid or not
-#axes.titlesize      : large   # fontsize of the axes title
+axes.titlesize      : 10   # fontsize of the axes title
 axes.labelsize      : 9  # fontsize of the x any y labels
 #axes.labelweight    : normal  # weight of the x and y labels
 #axes.labelcolor     : black

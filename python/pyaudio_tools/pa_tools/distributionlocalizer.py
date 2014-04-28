@@ -118,59 +118,86 @@ class DistributionLocalizer(AudioLocalizer):
                               np.sum(shifted[:, 1:-1], axis=1) + shifted[:, -1]
 
         # Shaping function \sum_i (mic_corr_i)^k
-        k = 2  # Defaul value of coefficient
+        k = 2  # Default value of coefficient
         if len(args) > 0:
           k = float(args[0])  # coefficient for shaping function
         distr = np.maximum(np.sum(np.abs(corrs) ** k, axis=0), consts.EPS)
         return distr
 
     def _get_distribution_beam(self, rffts, *args):
-        #freq = self.CUTOFF_FREQ-100
-        #freq = 1500
-        #freq_ind = int((freq / self._sample_rate) * (self._dft_len))
-        #response = self._lp_pos_shift_mats[:, freq_ind, :].conj()
-        #response = np.vstack((np.ones((1, response.shape[1])), response))
-        #rfft = np.tile(rffts[:, freq_ind], (response.shape[1], 1)).T
-        #shifted = response * rfft
-        #return np.sum(shifted * shifted.conj(), axis=0)
-        #return np.abs(np.sum(shifted, axis=0))
+        """
+        Use SRP from square of delay-and-sum beamformer output. This is described
+        in the thesis, and can be done in the frequency domain
+        """
         cutoff_index = self._compute_cutoff_index()
         lowffts = rffts[:, :cutoff_index]  # Low pass filtered
-        distr = np.empty((self._n_phi * self._n_theta,))
-        # Create weighting vector for summing across frequencies
-        #w = np.linspace(0, 1, self._lp_pos_shift_mats.shape[1])
-        w = self._n_mics / np.sum(lowffts * lowffts.conj(), axis=0)
-        w[:3] = 0
-        for i in range(self._n_phi * self._n_theta):
-            response = np.vstack((np.ones((1, self._lp_pos_shift_mats.shape[1])), \
-                                  self._lp_pos_shift_mats[:, :, i].conj()))
-            distr[i] = np.abs(np.sum(w * np.sum(lowffts * response, axis=0)))
-        return distr
+        # Get cross power at each pair of mics
+        cp_pairs = self._get_crosspower_pairs(lowffts)
+        # Get cross power at mic pair consisting of same mic twice
+        mic_self_energy = lowffts * lowffts.conj()
 
+        # Setup Frequency weighting function -- return a frequency weighted
+        # version of a crosspower matrix
+        def PHAT(crosspower_mat):
+          # Use PHAT weighting by default
+          return crosspower_mat / (np.abs(crosspower_mat) + consts.EPS)
+        # Check for user selected version
+        if len(args) > 0:
+          weighted = args[0]
+        else:
+          weighted = PHAT
+
+        # Setup vector for steered response power result
+        srp = np.empty((self._n_theta * self._n_phi,))
+        for i in range(self._n_phi * self._n_theta):
+            # Get between microphone energy
+            shifted_cps = cp_pairs * self._all_lp_pos_shift_mats[:, :, i]
+            srp[i] = np.abs(
+                2 * np.sum(np.sum(weighted(shifted_cps))) + \
+                    np.sum(np.sum(weighted(mic_self_energy))))
+        return srp
 
     def _get_distribution_mcc(self, rffts, *args):
         cutoff_index = self._compute_cutoff_index()
         lowffts = rffts[:, :cutoff_index]  # Low pass filtered
-        auto_corr = np.empty((self._n_mic_pairs, cutoff_index), 
+        cp_pairs = self._get_crosspower_pairs(lowffts)
+        # Use PHAT Transform
+        cp_pairs /= (np.abs(cp_pairs) + consts.EPS)
+        corrs = np.zeros((self._n_mic_pairs, self._n_theta * self._n_phi),
+                            dtype=consts.COMPLEX_DTYPE)
+        if cutoff_index < self._dft_len/2. + 1:
+            for i in range(self._n_theta * self._n_phi):
+                shifted = cp_pairs * self._all_lp_pos_shift_mats[:, :, i]
+                corrs[:, i] = shifted[:, 0] + \
+                    2 * np.sum(shifted[:, 1:], axis=1)  # ifft for n = 0
+        else:
+            for i in range(self._n_theta * self._n_phi):
+                shifted = cp_pairs * self._all_lp_pos_shift_mats[:, :, i]
+                corrs[:, i] = shifted[:, 0] + \
+                    2 * np.sum(shifted[:, 1:-1], axis=1) + shifted[:, -1]  
+        # Shaping function \sum_i (mic_corr_i)^k
+        k = 2  # Default value of coefficient
+        if len(args) > 0:
+          k = float(args[0])  # coefficient for shaping function
+        distr = np.maximum(np.sum(np.abs(corrs) ** k, axis=0), consts.EPS) 
+        return distr
+
+    def _get_crosspower_pairs(self, rffts):
+        """
+        Get the crosspower spectrum for every unique pair of microphones.
+        Row i will contain the cross power spectrum for the ith pair, between
+        microphones j and k. This will be
+          X_j(f)X_k(f)*
+
+        """
+        cp_pairs = np.empty((self._n_mic_pairs, rffts.shape[1]), 
                         dtype=consts.COMPLEX_DTYPE)
         curr_ind = 0
         for i in range(1, self._n_mics):
-            auto_corr[curr_ind:curr_ind + self._n_mics-i, :] = \
-                lowffts[i-1, :] * lowffts[i:, :].conjugate()
+            cp_pairs[curr_ind:curr_ind + self._n_mics-i, :] = \
+                rffts[i-1, :] * rffts[i:, :].conjugate()
             curr_ind += self._n_mics-i
-        auto_corr /= (np.abs(auto_corr) + consts.EPS)
-        corrs = np.zeros((self._n_mic_pairs, self._n_theta * self._n_phi),
-                            dtype=consts.REAL_DTYPE)
-        if cutoff_index < self._dft_len/2. + 1:
-            for i in range(self._n_theta * self._n_phi):
-                shifted = auto_corr * self._all_lp_pos_shift_mats[:, :, i]
-                corrs[:, i] = shifted[:, 0] + 2 * np.sum(shifted[:, 1:], axis=1)  # ifft for n = 0
-        else:
-            for i in range(self._n_theta * self._n_phi):
-                shifted = auto_corr * self._all_lp_pos_shift_mats[:, :, i]
-                corrs[:, i] = shifted[:, 0] + 2 * np.sum(shifted[:, 1:-1], axis=1) + shifted[:, -1]  # ifft for n = 0
-        distr = np.maximum(np.sum(corrs * corrs.conj(), axis=0), consts.EPS) # Replace zeros with EPS
-        return distr
+        return cp_pairs
 
     def get_3d_real_distribution(self, dfts):
         rffts = mat.to_real_matlab_format(dfts)

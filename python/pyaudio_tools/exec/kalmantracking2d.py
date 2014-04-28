@@ -1,5 +1,3 @@
-__author__ = 'adamjmiller'
-import wave
 import struct
 import threading
 import math
@@ -18,6 +16,7 @@ from pa_tools.audiohelper import AudioHelper
 from pa_tools.audiobuffer import AudioBuffer
 from pa_tools.stftmanager import StftManager
 from pa_tools.kalmantrackinglocalizer import KalmanTrackingLocalizer
+from pa_tools.gridtrackinglocalizer import GridTrackingLocalizer
 from pa_tools.beamformer import BeamFormer
 from searchspace import SearchSpace
 from searchspace import OrientedSourcePlane
@@ -37,23 +36,23 @@ NUM_CHANNELS_OUT = 1
 N_THETA = 100
 N_PHI = 1
 PLOT_POLAR = False
-PLOT_CARTES = True
-PLOT_2D = False
+PLOT_CARTES = False
+PLOT_2D = True
 EXTERNAL_PLOT = False
 PLAY_AUDIO = False
 DO_BEAMFORM = False
 RECORD_AUDIO = False
 VIDEO_OVERLAY = False
 OUTFILE_NAME = 'nonbeamformed.wav'
-FIG_OUTFILE_BASENAME = 'gcclikelihood'
+FIG_OUTFILE_BASENAME = 'fig'
 FIG_DIRECTORY_NAME = 'figures'
 FIG_OUTFILE_NUMBER = 0  # Suffix for filename to avoid overwrites
 TIMEOUT = 1
 # Source planes and search space
 SOURCE_PLANE_NORMAL = np.array([0, -1, 0])
 SOURCE_PLANE_UP = np.array([0, 0 , 1])
-SOURCE_PLANE_OFFSET = np.array([0, 4, 0])
-SOURCE_LOCATION_COV = np.array([[1, 0], [0, .01]])
+SOURCE_PLANE_OFFSET = np.array([0, 2, 0])
+SOURCE_LOCATION_COV = np.array([[6, 0], [0, .01]])
 MIC_LOC = np.array([0, 0, 0])
 CAMERA_LOC = np.array([0, 0, 0])
 TIME_STEP = .1
@@ -78,7 +77,7 @@ MIC_ABOVE = np.array([0, 0, 1])
 # Setup printing
 np.set_printoptions(precision=2, suppress=True)
 # Setup figure size
-plotting.setup_halfpage_figsize()
+plotting.setup_fullpage_figsize()
 
 # Setup mics
 mic_layout = np.array([[.03, 0], [-.01, 0], [.01, 0], [-.03, 0]])
@@ -213,6 +212,34 @@ def make_wav():
     outwav.writeframes(data_bytes)
     outwav.close()
 
+def setup_2d_handle(ax, n_past_samples, est_color, title='', discard_edge_n = 0):
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    sample_mat = np.zeros((N_THETA, n_past_samples))
+    estimate_mat = np.zeros((n_past_samples,))
+    plot_2d = ax.imshow(sample_mat, vmin=0, vmax=.03, cmap='bone')
+    state_est_plot, = plt.plot(estimate_mat, est_color)
+    #state_est_plot, = plt.plot(estimate_mat, 'b', lw=3)
+    ax.set_ylim(discard_edge_n, N_THETA-discard_edge_n)
+    ax.set_xlim(0, n_past_samples)
+    ax.set_title(title)
+    ax.set_xlabel('time')
+    ax.set_ylabel('DOA')
+    return plot_2d, state_est_plot, sample_mat, estimate_mat
+
+def update_2d_plot(distr, plot_2d, state_est_plot, sample_mat, estimate_mat):
+    distr -= np.min(distr)
+    distr /= (np.sum(distr) + consts.EPS)
+    # UPdate sample_matrix
+    sample_mat[:, :-1] = sample_mat[:, 1:]
+    sample_mat[:, -1] = distr
+    # Update estimate matrix
+    maxind = np.argmax(distr)
+    estimate_mat[:-1] = estimate_mat[1:]
+    estimate_mat[-1] = maxind
+    plot_2d.set_array(sample_mat)
+    state_est_plot.set_ydata(estimate_mat)
+
 def setup_video_handle(m, n):
     """
     Setup handles for plotting distribution on top of video
@@ -258,6 +285,13 @@ def localize():
     # Setup pyaudio instances
     pa = pyaudio.PyAudio()
     helper = AudioHelper(pa)
+    #localizer = GridTrackingLocalizer(mic_positions=mic_layout,
+    #                                  search_space=space,
+    #                                  source_cov=SOURCE_LOCATION_COV,
+    #                                  dft_len=FFT_LENGTH,
+    #                                  sample_rate=SAMPLE_RATE,
+    #                                  n_theta=N_THETA,
+    #                                  n_phi=N_PHI)
     localizer = KalmanTrackingLocalizer(mic_positions=mic_layout,
                                       search_space=space,
                                       mic_forward=MIC_FORWARD,
@@ -331,7 +365,7 @@ def localize():
             pol_beam_plot, = plt.plot(theta, np.ones(theta.shape), 'red')
     if PLOT_CARTES:
         fig = plt.figure()
-        ax = plotting.get_halfpage_axis(fig)
+        ax = plotting.get_fullpage_axis(fig)
         #ax = fig.add_subplot(111)
         plt.show(block=False)
         # Setup space for plotting in new coordinates
@@ -343,8 +377,8 @@ def localize():
         for i in gcc_shaping_vals:
             plot, = plt.plot(theta, np.zeros(theta.shape))
             gcc_plots.append(plot)
-        pol_plot, = plt.plot(theta, np.zeros(theta.shape))
-        post_plot, = plt. plot(theta, np.zeros(theta.shape), 'green')
+        pol_plot, = plt.plot(theta, np.zeros(theta.shape), 'r')
+        post_plot, = plt. plot(theta, np.zeros(theta.shape), 'b--')
         ax.set_ylim(0, 1.2)
         ax.set_xlim(0, 1)  # Normalized
         #ax.set_xlabel('Angle $\left(\\frac{1}{\pi}\\right)$')
@@ -352,17 +386,18 @@ def localize():
         if DO_BEAMFORM:
             pol_beam_plot, = plt.plot(theta, np.ones(theta.shape), 'red')
     if PLOT_2D:
-        fig_2d = plt.figure(figsize=(10, 6))
-        ax_2d = fig_2d.add_subplot(111)
+        #fig_2d = plt.figure(figsize=(10, 6))
+        fig = plt.figure()
+        w, h = fig.get_size_inches()
+        #fig = plt.figure(figsize=(w, 2*h))
         n_past_samples = 200
-        sample_mat = np.zeros((N_THETA, n_past_samples))
-        estimate_mat = np.zeros((n_past_samples,))
-        estimate_mat2 = np.zeros((n_past_samples,))
-        plot_2d = ax_2d.imshow(sample_mat, vmin=0, vmax=.03, cmap='bone')
-        state_est_plot2, = plt.plot(estimate_mat, 'r', lw=3)
-        state_est_plot, = plt.plot(estimate_mat, 'b', lw=3)
-        ax_2d.set_ylim(0, N_THETA)
-        ax_2d.set_xlim(0, n_past_samples)
+        ax1 = fig.add_subplot(111)
+        #ax2 = fig.add_subplot(212)
+        ax2 = ax1
+        plot_2d_2, estimate_plot_2, sample_mat_2, estimate_mat_2 = \
+                setup_2d_handle(ax2, n_past_samples, 'r', 'SRP-PHAT', 0 * N_THETA)
+        plot_2d_1, estimate_plot_1, sample_mat_1, estimate_mat_1 = \
+                setup_2d_handle(ax1, n_past_samples, 'b', 'Grid', 0 * N_THETA)
         plt.show(block=False)
     if VIDEO_OVERLAY:
         vc = cv2.VideoCapture(0)
@@ -395,13 +430,18 @@ def localize():
                 dfts = stft.getDFTs()
                 rffts = mat.to_all_real_matlab_format(dfts)
                 gccs = []
-                for k in gcc_shaping_vals:
-                    d, energy = localizer.get_distribution_real(
-                            rffts[:, :, 0], 'gcc', k) # Use first hop
-                    gccs.append(d)
-                d, energy = localizer.get_distribution_real(rffts[:, :, 0], 'gcc', 1) # Use first hop
+                #for k in gcc_shaping_vals:
+                #    d, energy = localizer.get_distribution_real(
+                #            rffts[:, :, 0], 'mcc', k) # Use first hop
+                #    gccs.append(d)
+                d, energy = localizer.get_distribution_real(rffts[:, :, 0], 'beam') # Use first hop
+                def w(cpmat):
+                    cpmat /= (np.abs(cpmat + consts.EPS))
+                    return cpmat
+                post = localizer.get_distribution(rffts[:, :, 0], 'beam')
+                #post, bla = localizer.get_distribution_real(rffts[:, :, 0], 'mcc')
 
-                post = localizer.get_distribution(rffts[:, :, 0])
+                #post = localizer.get_distribution(rffts[:, :, 0])
                 ind = np.argmax(d)
                 u = 1.5 * direcs[:, ind]  # Direction of arrival
                 #if energy < 500:
@@ -419,19 +459,19 @@ def localize():
                         dist = d
                         #dist -= np.min(dist)
                         dist = localizer.to_spher_grid(dist)
+                        print post.shape
                         post = localizer.to_spher_grid(post) * 50
                         dist /= np.max(dist)
                         if np.max(dist) > 1:
                           dist /= np.max(dist)
-                        #dist /= (np.sum(dist) + consts.EPS)
                         if np.max(post) > 1:
                           post /= np.max(post)
-                        #pol_plot.set_ydata(dist[0, :])
-                        #post_plot.set_ydata(post[0, :])
-                        for i, plot in enumerate(gcc_plots):
-                            gcc = gccs[i]
-                            gcc /= (np.max(gcc) + consts.EPS)
-                            plot.set_ydata(gccs[i])
+                        pol_plot.set_ydata(dist[0, :])
+                        post_plot.set_ydata(post[0, :])
+                        #for i, plot in enumerate(gcc_plots):
+                        #    gcc = gccs[i]
+                        #    gcc /= (np.max(gcc) + consts.EPS)
+                        #    plot.set_ydata(gccs[i])
                         if DO_BEAMFORM:
                             # Get beam plot
                             freq = 2500.  # Hz
@@ -446,21 +486,11 @@ def localize():
                     if PLOT_2D:
                         # Get unconditional distribution
                         dist = localizer.to_spher_grid(d)
-                        dist -= np.min(dist)
-                        dist /= (np.sum(dist) + consts.EPS)
-                        sample_mat[:, :-1] = sample_mat[:, 1:]
-                        sample_mat[:, -1] = dist
-                        # Get kalman estimate
-                        maxind = np.argmax(post)
-                        estimate_mat[:-1] = estimate_mat[1:]
-                        estimate_mat[-1] = maxind
-                        # Get standard estimate
-                        maxind2 = np.argmax(dist)
-                        estimate_mat2[:-1] = estimate_mat2[1:]
-                        estimate_mat2[-1] = maxind2
-                        plot_2d.set_array(sample_mat)
-                        state_est_plot2.set_ydata(estimate_mat2)
-                        state_est_plot.set_ydata(estimate_mat)
+                        update_2d_plot(dist, plot_2d_2, estimate_plot_2, 
+                                sample_mat_2, estimate_mat_2)
+                        dist = localizer.to_spher_grid(post)
+                        update_2d_plot(dist, plot_2d_1, estimate_plot_1, 
+                                sample_mat_1, estimate_mat_1)
                         plt.draw()
                     if VIDEO_OVERLAY:
                         post /= np.max(post + consts.EPS)

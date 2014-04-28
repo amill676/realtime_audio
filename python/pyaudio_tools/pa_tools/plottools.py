@@ -34,6 +34,11 @@ def setup_halfpage_figsize():
   setup_figsize(TEXTWIDTH, SUBFIG_SCALE)
   plt.locator_params(nbins=4)
 
+def get_fullpage_axis(fig):
+  ax = fig.add_subplot(111)
+  ax.locator_params(nbins=6)
+  return ax
+
 def get_halfpage_axis(fig):
   ax = fig.add_subplot(111)
   ax.locator_params(nbins=4)
