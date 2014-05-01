@@ -82,7 +82,7 @@ class DistributionLocalizer(AudioLocalizer):
         if method == 'gcc':
             distr = self._get_distribution_gcc(rffts, *args)
         if method == 'beam':
-            distr = self._get_distribution_beam(rffts, *args)
+            distr = self._get_distribution_beam(rffts, self._all_lp_pos_shift_mats, *args)
         if method == 'mcc':
             distr = self._get_distribution_mcc(rffts, *args)
         return distr, energy
@@ -122,10 +122,15 @@ class DistributionLocalizer(AudioLocalizer):
         distr = np.maximum(np.sum(np.abs(corrs) ** k, axis=0), consts.EPS)
         return distr
 
-    def _get_distribution_beam(self, rffts, *args):
+    def _get_distribution_beam(self, rffts, shift_mats, *args):
         """
         Use SRP from square of delay-and-sum beamformer output. This is described
         in the thesis, and can be done in the frequency domain
+
+        :param shift_mats: Crosspower shift matrix that will be applied to microphone
+                           pair cross power spectra to align them to certain direcitons
+                           Should be of size (n_mic_pairs x n_dft_bins x n_steering_directions)
+        :returns: steered response power -- n_steering_directions length vector
         """
         cutoff_index = self._compute_cutoff_index()
         lowffts = rffts[:, :cutoff_index]  # Low pass filtered
@@ -146,10 +151,11 @@ class DistributionLocalizer(AudioLocalizer):
           weighted = PHAT
 
         # Setup vector for steered response power result
-        srp = np.empty((self._n_theta * self._n_phi,))
-        for i in range(self._n_phi * self._n_theta):
+        n_directions = shift_mats.shape[2]
+        srp = np.empty((n_directions,))
+        for i in range(n_directions):
             # Get between microphone energy
-            shifted_cps = cp_pairs * self._all_lp_pos_shift_mats[:, :, i]
+            shifted_cps = cp_pairs * shift_mats[:, :, i]
             srp[i] = np.abs(
                 2 * np.sum(np.sum(weighted(shifted_cps))) + \
                     np.sum(np.sum(weighted(mic_self_energy))))
@@ -343,6 +349,12 @@ class DistributionLocalizer(AudioLocalizer):
             np.zeros((4, self._n_phi * self._n_theta), dtype=consts.REAL_DTYPE)
         self._prev_distr[:3, :] = self._directions
 
+    def _get_srp_likelihood(self, rffts, directions):
+        delays = -1 * self._all_distances.dot(directions) * \
+            self._sample_rate / consts.SPEED_OF_SOUND
+        cutoff_index = self._compute_cutoff_index()
+        shift_mats = self._get_shifts_from_delays(delays, cutoff_index)
+        return _get_distribution_beam(rffts, shift_mats)
 
     def _compute_cutoff_index(self):
         """
@@ -408,12 +420,13 @@ class DistributionLocalizer(AudioLocalizer):
         if dft_coeff_n > self._dft_len/2. + 1 and dft_coeff_n != self._dft_len:
             raise ValueError("If dft_coeff_n is not DFT_LEN it must be \
                               at most DFT_LEN/2 + 1")
-        shift_mats = np.empty((delays.shape[0], dft_coeff_n, self._n_theta * self._n_phi),
+        n_delays = delays.shape[1]
+        shift_mats = np.empty((delays.shape[0], dft_coeff_n, n_delays),
                                     dtype=consts.COMPLEX_DTYPE)
         nn = np.hstack((np.arange(0, self._dft_len / 2, dtype=consts.REAL_DTYPE),
                         np.arange(-self._dft_len / 2, 0, dtype=consts.REAL_DTYPE)))
         nn = nn[:dft_coeff_n] # Use first dft_coeff_n coefficients
-        for i in range(shift_mats.shape[2]):
+        for i in range(n_delays):
             freqs = np.outer(delays[:, i], nn)
             shift_mats[:, :, i] = np.exp(-1j * 2 * math.pi * freqs / self._dft_len)
         return shift_mats
