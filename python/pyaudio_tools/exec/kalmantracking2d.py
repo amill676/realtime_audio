@@ -36,8 +36,8 @@ NUM_CHANNELS_OUT = 1
 N_THETA = 100
 N_PHI = 1
 PLOT_POLAR = False
-PLOT_CARTES = False
-PLOT_2D = True
+PLOT_CARTES = True
+PLOT_2D = False
 EXTERNAL_PLOT = False
 PLAY_AUDIO = False
 DO_BEAMFORM = False
@@ -51,7 +51,7 @@ TIMEOUT = 1
 # Source planes and search space
 SOURCE_PLANE_NORMAL = np.array([0, -1, 0])
 SOURCE_PLANE_UP = np.array([0, 0 , 1])
-SOURCE_PLANE_OFFSET = np.array([0, 2, 0])
+SOURCE_PLANE_OFFSET = np.array([0, 4, 0])
 SOURCE_LOCATION_COV = np.array([[6, 0], [0, .01]])
 MIC_LOC = np.array([0, 0, 0])
 CAMERA_LOC = np.array([0, 0, 0])
@@ -77,7 +77,7 @@ MIC_ABOVE = np.array([0, 0, 1])
 # Setup printing
 np.set_printoptions(precision=2, suppress=True)
 # Setup figure size
-plotting.setup_fullpage_figsize()
+plotting.setup_halfpage_figsize()
 
 # Setup mics
 mic_layout = np.array([[.03, 0], [-.01, 0], [.01, 0], [-.03, 0]])
@@ -365,7 +365,7 @@ def localize():
             pol_beam_plot, = plt.plot(theta, np.ones(theta.shape), 'red')
     if PLOT_CARTES:
         fig = plt.figure()
-        ax = plotting.get_fullpage_axis(fig)
+        ax = plotting.get_halfpage_axis(fig)
         #ax = fig.add_subplot(111)
         plt.show(block=False)
         # Setup space for plotting in new coordinates
@@ -377,8 +377,8 @@ def localize():
         for i in gcc_shaping_vals:
             plot, = plt.plot(theta, np.zeros(theta.shape))
             gcc_plots.append(plot)
-        pol_plot, = plt.plot(theta, np.zeros(theta.shape), 'r')
-        post_plot, = plt. plot(theta, np.zeros(theta.shape), 'b--')
+        pol_plot, = plt.plot(theta, np.zeros(theta.shape), 'r--')
+        post_plot, = plt. plot(theta, np.zeros(theta.shape), 'b')
         ax.set_ylim(0, 1.2)
         ax.set_xlim(0, 1)  # Normalized
         #ax.set_xlabel('Angle $\left(\\frac{1}{\pi}\\right)$')
@@ -397,7 +397,7 @@ def localize():
         plot_2d_2, estimate_plot_2, sample_mat_2, estimate_mat_2 = \
                 setup_2d_handle(ax2, n_past_samples, 'r', 'SRP-PHAT', 0 * N_THETA)
         plot_2d_1, estimate_plot_1, sample_mat_1, estimate_mat_1 = \
-                setup_2d_handle(ax1, n_past_samples, 'b', 'Grid', 0 * N_THETA)
+                setup_2d_handle(ax1, n_past_samples, 'b', '', 0 * N_THETA)
         plt.show(block=False)
     if VIDEO_OVERLAY:
         vc = cv2.VideoCapture(0)
