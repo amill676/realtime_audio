@@ -464,12 +464,15 @@ def localize():
                 post3 = localizer3.get_distribution(rffts[:, :, 0])
                 w = np.asarray(post.weights)
                 ps = np.asarray(post.particles)
+                ps[:, 1] = np.abs(ps[:, 1])  # Since we have ambiguity about side of array
                 estimate = w.dot(ps)
                 w2 = np.asarray(post2.weights)
                 ps2 = np.asarray(post2.particles)
+                ps2[:, 1] = np.abs(ps2[:, 1])
                 estimate2 = w2.dot(ps2)
                 w3 = np.asarray(post3.weights)
                 ps3 = np.asarray(post3.particles)
+                ps3[:, 1] = np.abs(ps3[:, 1])
                 estimate3 = w3.dot(ps3)
                 #if energy < 1000:
                 #    continue

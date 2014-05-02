@@ -44,14 +44,15 @@ class VonMisesTrackingLocalizer(TrackingLocalizer):
   #  self._tracking_plane = self._planes[0]
 
   def get_distribution(self, rffts):
-    d, energy = self.get_distribution_real(rffts, 'gcc')
-    maxind = np.argmax(d)
-    obs = self._directions[:, maxind]
-    obs = np.asarray(obs, dtype=float) # port audio uses 32, pybayes uses 64
-    if self._use_outlier_distribution():
-      self._weighted_bayes(obs)
-    else:
-      self._bayes(obs)
+    #d, energy = self.get_distribution_real(rffts, 'gcc')
+    #maxind = np.argmax(d)
+    #obs = self._directions[:, maxind]
+    #obs = np.asarray(obs, dtype=float) # port audio uses 32, pybayes uses 64
+    #self._bayes(obs)
+    #if self._use_outlier_distribution():
+    #  self._weighted_bayes(obs)
+    #else:
+    self._doa_bayes(rffts)
     #self._particle_filter.bayes(obs)
     #self._posterior = self._particle_filter.posterior()
     return self._posterior
@@ -130,6 +131,31 @@ class VonMisesTrackingLocalizer(TrackingLocalizer):
     self._posterior.normalise_weights()
     return True
 
+  def _doa_bayes(self, rffts):
+    """
+    Particle filtering using SRP-PHAT as likelihood measure of observation
+    """
+    # resample -- do it here so that the weights will be available after one run
+    # of inference.
+    self._posterior.resample()
+    for i in range(self._posterior.particles.shape[0]):
+      # generate new ith particle:
+      self._posterior.particles[i] = \
+        self._state_distribution.sample(self._posterior.particles[i])
+    # Get SRP likelihood
+    particles_3d = self._to_3d_particles(self._posterior.particles).T
+    srp = self._get_srp_likelihood(rffts, particles_3d)
+    srp -= np.min(srp)
+    srp /= (np.sum(srp) + consts.EPS)
+    self._posterior.weights *= srp
+    #for i in range(self._posterior.particles.shape[0]):
+    #  # recompute ith weight:
+    #  self._posterior.weights[i] *= \
+    #    np.exp(self._obs_distribution.eval_log(yt, self._posterior.particles[i]))
+    # assure that weights are normalised
+    self._posterior.normalise_weights()
+    return True
+
   def _weighted_bayes(self, yt):
     """
     Do particle filtering using a spike and slab method. That is, assume we
@@ -201,6 +227,15 @@ class VonMisesTrackingLocalizer(TrackingLocalizer):
       return 2
     return self._n_dimensions
 
+  def _to_3d_particles(self, mat):
+    """
+    Change matrix so that instead of each column being in 2d, each column is
+    in 3d. This equates to adding a zero to each column vector
+    """
+    if self._get_effective_n_dimensions() == 3:
+      return mat
+    return np.hstack((np.asarray(mat), np.zeros((1, mat.shape[0]))))
+
   def _get_estimate(self):
       w = np.asarray(self._posterior.weights)
       parts = np.asarray(self._posterior.particles)
@@ -225,7 +260,6 @@ class VonMisesTrackingLocalizer(TrackingLocalizer):
     self._posterior.weights[:] = 1. / self._n_particles
     self._class_weights = np.sum(self._joint_weights, axis=1)
     self._class_weights = np.array([.5, .5])
-
 
 
 
