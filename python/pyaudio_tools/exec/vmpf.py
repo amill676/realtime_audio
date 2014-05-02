@@ -40,7 +40,7 @@ PLOT_CARTES = False
 PLOT_2D = False
 EXTERNAL_PLOT = False
 PLAY_AUDIO = False
-DO_TRACK = True
+DO_TRACK = False
 TRACKING_FREQ = 3
 DO_BEAMFORM = False
 RECORD_AUDIO = False
@@ -59,7 +59,7 @@ CAM_FORWARD = np.array([0, 1, 0])
 CAM_ABOVE = np.array([0, 0, 1])
 STATE_KAPPA = 100
 OBS_KAPPA = 50
-OUTLIER_PROB = .95
+OUTLIER_PROB = 0 
 N_PARTICLES = 80
 
 # Setup printing
@@ -341,8 +341,8 @@ def localize():
                 rffts = mat.to_all_real_matlab_format(dfts)
                 d, energy = localizer.get_distribution_real(rffts[:, :, 0], 'gcc') # Use first hop
                 #print energy
-                if energy < 2500:
-                    continue
+                #if energy < 2500:
+                #    continue
                 post = localizer.get_distribution(rffts[:, :, 0]) # PyBayes EmpPdf
                 #post2 = localizer2.get_distribution(rffts[:, :, 0])
                 # Get estimate from particles

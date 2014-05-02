@@ -158,8 +158,8 @@ class VonMisesTrackingLocalizer(TrackingLocalizer):
       outlier_class_post = outlier_particle_log_prob - total_particle_log_prob
       # Now compute total likelihood 
       # p(y_t|x_t) = sum_j p(y_t,c_j|x_t) = sum_j p(y_t|c_j,x_t)p(c_j|x_t)
-      total_likelihood = np.exp(state_ll + state_class_post) + \
-                         np.exp(outlier_ll + outlier_class_post)
+      total_likelihood = np.exp(state_ll + state_class_post) #+ \
+                         #np.exp(outlier_ll + outlier_class_post)
       self._posterior.weights[i] *= total_likelihood
       #print "state: %f, outlier: %f, update: %f" %(eta_state, eta_outlier, weight_update)
     # assure that weights are normalised
