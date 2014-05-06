@@ -8,8 +8,7 @@ class FilterPlot(object):
   Class for plotting observation distributions and filter estimates
   over time.
   """
-  def __init__(self, ax, n_space, n_past_samples, n_estimates=0, title=''):
-    self._ax = ax
+  def __init__(self, n_space, n_past_samples, n_estimates=0, title=''):
     self._n_space = n_space
     self._n_past_samples = n_past_samples
     self._n_estimates = n_estimates
@@ -17,6 +16,9 @@ class FilterPlot(object):
     self._setup()
 
   def _setup(self):
+    # Setup figure
+    self._setup_figure()
+
     # Setup structures first
     self._time_space = np.arange(self._n_past_samples)
     # Holds distribution to be plotted at each time frame in each column
@@ -52,6 +54,8 @@ class FilterPlot(object):
     if estimates is not None:
       self._update_estimates(estimates)
     self._update_plots()
+    # Draw updated figure
+    self._update_figure()
 
   def _update_distr(self, distr):
     distr_norm = distr - np.min(distr)
@@ -78,5 +82,14 @@ class FilterPlot(object):
     else:
       mat[:-1] = mat[1:]
       mat[-1] = frame
+
+  def _setup_figure(self):
+    self._fig = plt.figure()
+    self._ax = self._fig.add_subplot(111)
+    plt.show(block=False)
+
+  def _update_figure(self):
+    plt.draw()
+
 
 

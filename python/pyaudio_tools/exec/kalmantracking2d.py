@@ -389,20 +389,8 @@ def localize():
         if DO_BEAMFORM:
             pol_beam_plot, = plt.plot(theta, np.ones(theta.shape), 'red')
     if PLOT_2D:
-        #fig_2d = plt.figure(figsize=(10, 6))
-        fig = plt.figure()
-        w, h = fig.get_size_inches()
-        #fig = plt.figure(figsize=(w, 2*h))
         n_past_samples = 200
-        ax1 = fig.add_subplot(111)
-        filter_plot = FilterPlot(ax1, N_THETA, n_past_samples, 2)
-        #ax2 = fig.add_subplot(212)
-        #ax2 = ax1
-        #plot_2d_2, estimate_plot_2, sample_mat_2, estimate_mat_2 = \
-        #        setup_2d_handle(ax2, n_past_samples, 'r', 'SRP-PHAT', 0 * N_THETA)
-        #plot_2d_1, estimate_plot_1, sample_mat_1, estimate_mat_1 = \
-        #        setup_2d_handle(ax1, n_past_samples, 'b', '', 0 * N_THETA)
-        plt.show(block=False)
+        filter_plot = FilterPlot(N_THETA, n_past_samples, 2)
     if VIDEO_OVERLAY:
         vc = cv2.VideoCapture(0)
         video_handle, video_plot = setup_video_handle(720, 1280)

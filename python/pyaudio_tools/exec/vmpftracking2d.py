@@ -413,11 +413,8 @@ def localize():
         if DO_BEAMFORM:
             pol_beam_plot, = plt.plot(theta, np.ones(theta.shape), 'red')
     if PLOT_2D:
-        fig_2d = plt.figure()
-        ax_2d = fig_2d.add_subplot(111)
         n_past_samples = 100
-        particle_plot = ParticleFilterPlot(ax_2d, N_THETA, n_past_samples, N_PARTICLES, n_estimates=2)
-        plt.show(block=False)
+        particle_plot = ParticleFilterPlot(N_THETA, n_past_samples, N_PARTICLES, n_estimates=2)
     if VIDEO_OVERLAY:
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -502,7 +499,6 @@ def localize():
                         noisy = THETA_SPACE[np.argmax(dist)]
                         estimate = w.dot(theta_parts)
                         particle_plot.update(dist, theta_parts, w, [estimate, noisy])
-                        plt.draw()
                     if VIDEO_OVERLAY:
                         _, cvimage = vc.read()
                         overlay_particles(video_handle, vid_part_plots, vid_estim_plot, \
