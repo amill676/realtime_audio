@@ -19,7 +19,7 @@ from pa_tools.vonmisestrackinglocalizer import VonMisesTrackingLocalizer
 from pa_tools.beamformer import BeamFormer
 from searchspace import SearchSpace
 from searchspace import OrientedSourcePlane
-from pa_tools.plottools import Particle2DPlot
+from plottools.particle2dplot import Particle2DPlot
 
 
 # Setup constants
