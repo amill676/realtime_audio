@@ -26,10 +26,10 @@ class FilterPlot(object):
     if self._n_estimates > 0:
       self._estimate_mat = np.zeros((self._n_estimates, self._n_past_samples))
       self._estimate_plots = []
-      colors = itertools.cycle(['r', 'b', 'k', 'g'])
+      colors = itertools.cycle(['b', 'r', 'k', 'g'])
       for i in range(self._n_estimates):
         self._estimate_plots.append(
-          self._ax.plot(self._time_space, self._estimate_mat.T, color=next(colors))[0]
+          self._ax.plot(self._time_space, self._estimate_mat.T, color=next(colors), lw=1)[0]
         )
 
     # Setup actual plot
@@ -60,8 +60,8 @@ class FilterPlot(object):
 
   def _update_estimates(self, estimates):
     if len(estimates) != self._n_estimates:
-      raise ValueError("Number of estimates provided does not match the number\
-                        of estimates specified during instantiation")
+      raise ValueError("Number of estimates provided does not match the " + \
+                        "number of estimates specified during instantiation")
     for i, estimate in enumerate(estimates):
       self._add_frame(self._estimate_mat[i, :], estimate)
 

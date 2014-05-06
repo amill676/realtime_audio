@@ -491,8 +491,8 @@ def localize():
                         # Get unconditional distribution
                         dist = localizer.to_spher_grid(d)
                         p = localizer.to_spher_grid(post)
-                        est1 = THETA_SPACE[np.argmax(dist)]
-                        est2 = THETA_SPACE[np.argmax(p)]
+                        est1 = THETA_SPACE[np.argmax(p)]
+                        est2 = THETA_SPACE[np.argmax(dist)]
                         filter_plot.update(dist, [est1, est2])
                         #update_2d_plot(dist, plot_2d_2, estimate_plot_2, 
                         #        sample_mat_2, estimate_mat_2)

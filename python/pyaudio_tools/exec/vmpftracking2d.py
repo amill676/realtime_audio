@@ -34,6 +34,7 @@ HOP_LENGTH = WINDOW_LENGTH / 2
 NUM_CHANNELS_IN = 4
 NUM_CHANNELS_OUT = 1
 N_THETA = 100
+THETA_SPACE = np.linspace(0, np.pi, N_THETA)
 N_PHI = 1
 PLOT_POLAR = False
 PLOT_CARTES = False
@@ -57,10 +58,10 @@ CAMERA_LOC = np.array([0, 0, 0])
 TIME_STEP = .1
 MIC_FORWARD = np.array([0, 1, 0])
 MIC_ABOVE = np.array([0, 0, 1])
-STATE_KAPPA = 40  
+STATE_KAPPA = 90  
 OUTLIER_PROB = .9
-OBS_KAPPA = 50
-N_PARTICLES = 20
+OBS_KAPPA = 5
+N_PARTICLES = 50
 
 # Setup printing
 np.set_printoptions(precision=4, suppress=True)
@@ -415,7 +416,7 @@ def localize():
         fig_2d = plt.figure()
         ax_2d = fig_2d.add_subplot(111)
         n_past_samples = 100
-        particle_plot = ParticleFilterPlot(ax_2d, N_THETA, n_past_samples, N_PARTICLES)
+        particle_plot = ParticleFilterPlot(ax_2d, N_THETA, n_past_samples, N_PARTICLES, n_estimates=2)
         plt.show(block=False)
     if VIDEO_OVERLAY:
         fig = plt.figure()
@@ -457,8 +458,8 @@ def localize():
                 w3 = np.asarray(post3.weights)
                 ps3 = np.asarray(post3.particles)
                 estimate3 = w3.dot(ps3)
-                #if energy < 500:
-                    #continue
+                #if energy < 1000:
+                #    continue
 
                 # Do beam forming
                 if DO_BEAMFORM:
@@ -498,7 +499,9 @@ def localize():
                     if PLOT_2D:
                         dist = localizer.to_spher_grid(d)
                         theta_parts = np.arctan2(ps[:, 1], ps[:, 0])
-                        particle_plot.update(dist, theta_parts, w)
+                        noisy = THETA_SPACE[np.argmax(dist)]
+                        estimate = w.dot(theta_parts)
+                        particle_plot.update(dist, theta_parts, w, [estimate, noisy])
                         plt.draw()
                     if VIDEO_OVERLAY:
                         _, cvimage = vc.read()

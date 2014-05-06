@@ -8,7 +8,7 @@ class ParticleFilterPlot(FilterPlot):
   Class for plotting particle filter over time. y axis will be state space
   while x axis will be time
   """
-  def __init__(self, ax, n_space, n_past_samples, n_particles, n_estimates=0, particle_color='r', title=''):
+  def __init__(self, ax, n_space, n_past_samples, n_particles, n_estimates=0, particle_color='b', title=''):
     FilterPlot.__init__(self, ax, n_space, n_past_samples, n_estimates, title)
     self._n_particles = n_particles
     self._particle_color = particle_color
@@ -47,7 +47,7 @@ class ParticleFilterPlot(FilterPlot):
             np.array([self._scatter_space, np.reshape(self._particles, self._particles.size)]).T)
     # UPdate colors
     vec_weights = np.reshape(self._weights, self._weights.size)
-    self._colors[:, 3] = vec_weights
+    self._colors[:, 3] = np.minimum(2 *vec_weights, 1)
     self._scatter.set_facecolors(self._colors)
     #self._scatter._sizes = vec_weights * 500
 
