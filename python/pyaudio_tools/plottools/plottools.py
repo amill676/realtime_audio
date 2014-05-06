@@ -1,7 +1,7 @@
 from matplotlib import rcParams
 import matplotlib.pyplot as plt
 import numpy as np
-import constants as consts
+import pa_tools.constants as consts
 
 TEXTWIDTH = 469.0
 SUBFIG_SCALE = .45

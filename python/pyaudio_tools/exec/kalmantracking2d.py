@@ -18,8 +18,10 @@ from pa_tools.stftmanager import StftManager
 from pa_tools.kalmantrackinglocalizer import KalmanTrackingLocalizer
 from pa_tools.gridtrackinglocalizer import GridTrackingLocalizer
 from pa_tools.beamformer import BeamFormer
+from plottools.filterplot import FilterPlot
 from searchspace import SearchSpace
 from searchspace import OrientedSourcePlane
+from plottools.filterplot import FilterPlot
 
 
 # Setup constants
@@ -34,10 +36,11 @@ HOP_LENGTH = WINDOW_LENGTH / 2
 NUM_CHANNELS_IN = 4
 NUM_CHANNELS_OUT = 1
 N_THETA = 100
+THETA_SPACE = np.linspace(0, np.pi, N_THETA)
 N_PHI = 1
 PLOT_POLAR = False
-PLOT_CARTES = True
-PLOT_2D = False
+PLOT_CARTES = False
+PLOT_2D = True
 EXTERNAL_PLOT = False
 PLAY_AUDIO = False
 DO_BEAMFORM = False
@@ -77,7 +80,7 @@ MIC_ABOVE = np.array([0, 0, 1])
 # Setup printing
 np.set_printoptions(precision=2, suppress=True)
 # Setup figure size
-plotting.setup_halfpage_figsize()
+plotting.setup_fullpage_figsize()
 
 # Setup mics
 mic_layout = np.array([[.03, 0], [-.01, 0], [.01, 0], [-.03, 0]])
@@ -392,12 +395,13 @@ def localize():
         #fig = plt.figure(figsize=(w, 2*h))
         n_past_samples = 200
         ax1 = fig.add_subplot(111)
+        filter_plot = FilterPlot(ax1, N_THETA, n_past_samples, 2)
         #ax2 = fig.add_subplot(212)
-        ax2 = ax1
-        plot_2d_2, estimate_plot_2, sample_mat_2, estimate_mat_2 = \
-                setup_2d_handle(ax2, n_past_samples, 'r', 'SRP-PHAT', 0 * N_THETA)
-        plot_2d_1, estimate_plot_1, sample_mat_1, estimate_mat_1 = \
-                setup_2d_handle(ax1, n_past_samples, 'b', '', 0 * N_THETA)
+        #ax2 = ax1
+        #plot_2d_2, estimate_plot_2, sample_mat_2, estimate_mat_2 = \
+        #        setup_2d_handle(ax2, n_past_samples, 'r', 'SRP-PHAT', 0 * N_THETA)
+        #plot_2d_1, estimate_plot_1, sample_mat_1, estimate_mat_1 = \
+        #        setup_2d_handle(ax1, n_past_samples, 'b', '', 0 * N_THETA)
         plt.show(block=False)
     if VIDEO_OVERLAY:
         vc = cv2.VideoCapture(0)
@@ -486,11 +490,15 @@ def localize():
                     if PLOT_2D:
                         # Get unconditional distribution
                         dist = localizer.to_spher_grid(d)
-                        update_2d_plot(dist, plot_2d_2, estimate_plot_2, 
-                                sample_mat_2, estimate_mat_2)
-                        dist = localizer.to_spher_grid(post)
-                        update_2d_plot(dist, plot_2d_1, estimate_plot_1, 
-                                sample_mat_1, estimate_mat_1)
+                        p = localizer.to_spher_grid(post)
+                        est1 = THETA_SPACE[np.argmax(dist)]
+                        est2 = THETA_SPACE[np.argmax(p)]
+                        filter_plot.update(dist, [est1, est2])
+                        #update_2d_plot(dist, plot_2d_2, estimate_plot_2, 
+                        #        sample_mat_2, estimate_mat_2)
+                        #dist = localizer.to_spher_grid(post)
+                        #update_2d_plot(dist, plot_2d_1, estimate_plot_1, 
+                        #        sample_mat_1, estimate_mat_1)
                         plt.draw()
                     if VIDEO_OVERLAY:
                         post /= np.max(post + consts.EPS)

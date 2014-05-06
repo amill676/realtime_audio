@@ -19,7 +19,7 @@ from pa_tools.vonmisestrackinglocalizer import VonMisesTrackingLocalizer
 from pa_tools.beamformer import BeamFormer
 from searchspace import SearchSpace
 from searchspace import OrientedSourcePlane
-from plottools.particle2dplot import Particle2DPlot
+from plottools.particlefilterplot import ParticleFilterPlot
 
 
 # Setup constants
@@ -415,7 +415,7 @@ def localize():
         fig_2d = plt.figure()
         ax_2d = fig_2d.add_subplot(111)
         n_past_samples = 100
-        particle_plot = Particle2DPlot(ax_2d, N_PARTICLES, N_THETA, n_past_samples)
+        particle_plot = ParticleFilterPlot(ax_2d, N_THETA, n_past_samples, N_PARTICLES)
         plt.show(block=False)
     if VIDEO_OVERLAY:
         fig = plt.figure()
@@ -498,7 +498,7 @@ def localize():
                     if PLOT_2D:
                         dist = localizer.to_spher_grid(d)
                         theta_parts = np.arctan2(ps[:, 1], ps[:, 0])
-                        particle_plot.update(theta_parts, w, dist)
+                        particle_plot.update(dist, theta_parts, w)
                         plt.draw()
                     if VIDEO_OVERLAY:
                         _, cvimage = vc.read()
