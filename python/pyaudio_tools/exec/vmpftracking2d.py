@@ -19,6 +19,7 @@ from pa_tools.vonmisestrackinglocalizer import VonMisesTrackingLocalizer
 from pa_tools.beamformer import BeamFormer
 from searchspace import SearchSpace
 from searchspace import OrientedSourcePlane
+from pa_tools.plottools import Particle2DPlot
 
 
 # Setup constants
@@ -36,14 +37,14 @@ N_THETA = 100
 N_PHI = 1
 PLOT_POLAR = False
 PLOT_CARTES = False
-PLOT_2D = False
+PLOT_2D = True
 EXTERNAL_PLOT = False
 PLAY_AUDIO = False
 DO_BEAMFORM = False
 RECORD_AUDIO = False
 VIDEO_OVERLAY = False
 SAVE_FRAMES = False
-PLOT_PARTICLES = True
+PLOT_PARTICLES = False
 OUTFILE_NAME = 'nonbeamformed.wav'
 TIMEOUT = 1
 # Source planes and search space
@@ -59,7 +60,7 @@ MIC_ABOVE = np.array([0, 0, 1])
 STATE_KAPPA = 40  
 OUTLIER_PROB = .9
 OBS_KAPPA = 50
-N_PARTICLES = 80
+N_PARTICLES = 20
 
 # Setup printing
 np.set_printoptions(precision=4, suppress=True)
@@ -166,7 +167,7 @@ def make_wav():
     outwav.setparams(params)
 
     # Convert to shorts
-    data = np.asarray(data * .5 * SHORT_MAX, dtype=np.int16)
+    data = np.asarray(data*.5*SHORT_MAX, dtype=np.int16)
     data_bytes = struct.pack('%dh' % NUM_CHANNELS_OUT * N_RECORD_FRAMES, *data)
 
     # Make plot
@@ -180,6 +181,49 @@ def make_wav():
     # Write out to file
     outwav.writeframes(data_bytes)
     outwav.close()
+
+def setup_2d_particle_handle(ax, n_past_samples, title='', discard_edge_n = 0):
+    # Get rid of grid lines
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    # Setup structures for maintaining all data to display in the image
+    lhood_mat = np.zeros((N_THETA, n_past_samples))
+    particles = np.zeros((N_PARTICLES, n_past_samples))
+    weights = np.zeros((N_PARTICLES, n_past_samples))
+    # Setup image
+    im_2d = ax.imshow(lhood_mat, vmin=0, vmax=.03, cmap='bone', origin='lower',
+                      extent=[0, n_past_samples-1, 0, np.pi], aspect='auto')
+    # Setup particle plots
+    #part_plots = ax.plot(np.arange(0, n_past_samples), particles.T, 'r.')
+    scatter_space = np.kron(np.ones((N_PARTICLES,)), np.arange(n_past_samples)) 
+    part_scat = plt.scatter(scatter_space, 
+        np.reshape(particles, N_PARTICLES * n_past_samples), edgecolors='none', facecolors='r')
+    ax.set_ylim(0, np.pi)
+    ax.set_xlim(0, n_past_samples-1)
+    ax.set_title(title)
+    ax.set_xlabel('time')
+    ax.set_ylabel('DOA')
+    return im_2d, scatter_space, part_scat, lhood_mat, particles, weights
+
+def update_2d_plot(ax, im_2d, scatter_space, part_scat, lhood_mat, particles, weights, 
+                      distr, new_parts, new_weights):
+    # Update likelihood matrix
+    lhood_mat[:, :-1] = lhood_mat[:, 1:]
+    dist = distr - np.min(distr)
+    dist /= (np.sum(dist) + consts.EPS)
+    lhood_mat[:, -1] = dist
+    # Translate particles into theta space
+    particles[:, :-1] = particles[:, 1:]
+    particles[:, -1] = np.arctan2(new_parts[:, 1], new_parts[:, 0])
+    # Update weights
+    weights[:, :-1] = weights[:, 1:]
+    weights[:, -1] = new_weights
+    # Update plot of localization likelihoods
+    im_2d.set_array(lhood_mat)
+    part_scat.set_offsets(
+            np.array([scatter_space, np.reshape(particles, particles.size)]).T)
+
+    #part_scat._sizes = np.reshape(weights, weights.size) * 200
 
 def setup_video_handle(ax, m, n):
     """
@@ -371,10 +415,7 @@ def localize():
         fig_2d = plt.figure()
         ax_2d = fig_2d.add_subplot(111)
         n_past_samples = 100
-        sample_mat = np.zeros((N_THETA, n_past_samples))
-        estimate_mat = np.zeros((n_past_samples,))
-        plot_2d = ax_2d.imshow(sample_mat, vmin=0, vmax=.03)
-        state_est_plot, = plt.plot(estimate_mat, 'red')
+        particle_plot = Particle2DPlot(ax_2d, N_PARTICLES, N_THETA, n_past_samples)
         plt.show(block=False)
     if VIDEO_OVERLAY:
         fig = plt.figure()
@@ -455,18 +496,9 @@ def localize():
                             pol_beam_plot.set_ydata(response[-1, :])
                         plt.draw()
                     if PLOT_2D:
-                        # Get unconditional distribution
                         dist = localizer.to_spher_grid(d)
-                        dist -= np.min(dist)
-                        dist /= (np.sum(dist) + consts.EPS)
-                        sample_mat[:, :-1] = sample_mat[:, 1:]
-                        sample_mat[:, -1] = dist
-                        # Get kalman estimate
-                        maxind = np.argmax(post)
-                        estimate_mat[:-1] = estimate_mat[1:]
-                        estimate_mat[-1] = maxind
-                        plot_2d.set_array(sample_mat)
-                        state_est_plot.set_ydata(estimate_mat)
+                        theta_parts = np.arctan2(ps[:, 1], ps[:, 0])
+                        particle_plot.update(theta_parts, w, dist)
                         plt.draw()
                     if VIDEO_OVERLAY:
                         _, cvimage = vc.read()
