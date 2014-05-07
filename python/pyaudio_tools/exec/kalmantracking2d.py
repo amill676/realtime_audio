@@ -476,18 +476,11 @@ def localize():
                             pol_beam_plot.set_ydata(response[-1, :])
                         plt.draw()
                     if PLOT_2D:
-                        # Get unconditional distribution
                         dist = localizer.to_spher_grid(d)
                         p = localizer.to_spher_grid(post)
                         est1 = THETA_SPACE[np.argmax(p)]
                         est2 = THETA_SPACE[np.argmax(dist)]
                         filter_plot.update(dist, [est1, est2])
-                        #update_2d_plot(dist, plot_2d_2, estimate_plot_2, 
-                        #        sample_mat_2, estimate_mat_2)
-                        #dist = localizer.to_spher_grid(post)
-                        #update_2d_plot(dist, plot_2d_1, estimate_plot_1, 
-                        #        sample_mat_1, estimate_mat_1)
-                        plt.draw()
                     if VIDEO_OVERLAY:
                         post /= np.max(post + consts.EPS)
                         dist = d - np.min(d)

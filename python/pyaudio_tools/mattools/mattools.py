@@ -302,3 +302,18 @@ def plane_intersection_point(basis, source_offset, source_dir,
     vec = plane_normal.T.dot(plane_offset - source_offset) / \
           plane_normal.T.dot(basis.dot(source_dir)) * basis.dot(source_dir)
     return np.linalg.solve(basis, vec)
+
+def add_frame(mat, frame):
+  """
+  Update a matrix of frames given a new frame. 
+  :param mat: m x n matrix with n frames, each of m dimensions
+  :param frame: new frame to put in last column of matrix. Should be vector
+                of m dimensions
+  """
+  if len(mat.shape) > 1:
+    mat[:, :-1] = mat[:, 1:]
+
+    mat[:, -1] = frame
+  else:
+    mat[:-1] = mat[1:]
+    mat[-1] = frame

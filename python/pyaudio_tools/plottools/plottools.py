@@ -44,3 +44,12 @@ def get_halfpage_axis(fig):
   ax = fig.add_subplot(111)
   ax.locator_params(nbins=4)
   return ax
+
+def update_3d_scatter(scat, newlocs):
+  """
+  Update scatter plot locations given a set of new locations
+  :param scat: scatter plot handle to use
+  :param newlocs: n x 3 array with n new locations
+  """
+  scat._offsets3d = (newlocs[:, 0], newlocs[:, 1], newlocs[:, 2])
+

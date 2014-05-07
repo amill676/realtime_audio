@@ -19,6 +19,7 @@ from pa_tools.beamformer import BeamFormer
 from searchspace import SearchSpace
 from searchspace import OrientedSourcePlane
 from camera import SonyCamera
+from plottools.particlehemisphereplot import ParticleHemispherePlot
 
 
 # Setup constants
@@ -58,7 +59,7 @@ MIC_ABOVE = np.array([0, 0, 1])
 CAM_FORWARD = np.array([0, 1, 0])
 CAM_ABOVE = np.array([0, 0, 1])
 STATE_KAPPA = 100
-OBS_KAPPA = 50
+OBS_KAPPA = 5
 OUTLIER_PROB = 0 
 N_PARTICLES = 80
 
@@ -292,11 +293,12 @@ def localize():
 
     # Plotting setup
     if PLOT_PARTICLES:
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        particle_plot, estimate_plot = setup_particle_plot(ax, 'b', 'k')
-        #particle_plot2, estimate_plot2 = setup_particle_plot(ax, 'g', 'r')
-        plt.show(block=False)
+        #fig = plt.figure()
+        #ax = fig.add_subplot(111, projection='3d')
+        #particle_plot, estimate_plot = setup_particle_plot(ax, 'b', 'k')
+        ##particle_plot2, estimate_plot2 = setup_particle_plot(ax, 'g', 'r')
+        #plt.show(block=False)
+        particle_plot = ParticleHemispherePlot(N_PARTICLES)
     if PLOT_POLAR:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='polar')
@@ -375,9 +377,10 @@ def localize():
                 # Take care of plotting
                 if count % 1 == 0:
                     if PLOT_PARTICLES:
-                        plot_particles(particle_plot, estimate_plot, post.particles, estimate)
+                        #plot_particles(particle_plot, estimate_plot, post.particles, estimate)
                         #plot_particles(particle_plot2, estimate_plot2, post2.particles, estimate2)
-                        plt.draw()
+                        #plt.draw()
+                        particle_plot.update(ps, w)
                     if PLOT_CARTES:
                         ax.cla()
                         ax.grid(False)

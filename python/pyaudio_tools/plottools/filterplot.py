@@ -2,8 +2,9 @@ import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 import pa_tools.constants as consts
+from realtimeplot import RealtimePlot
 
-class FilterPlot(object):
+class FilterPlot(RealtimePlot):
   """
   Class for plotting observation distributions and filter estimates
   over time.
@@ -74,22 +75,4 @@ class FilterPlot(object):
     if self._n_estimates > 0:
       for i, plot in enumerate(self._estimate_plots):
         plot.set_ydata(self._estimate_mat[i, :])
-
-  def _add_frame(self, mat, frame):
-    if len(mat.shape) > 1:
-      mat[:, :-1] = mat[:, 1:]
-      mat[:, -1] = frame
-    else:
-      mat[:-1] = mat[1:]
-      mat[-1] = frame
-
-  def _setup_figure(self):
-    self._fig = plt.figure()
-    self._ax = self._fig.add_subplot(111)
-    plt.show(block=False)
-
-  def _update_figure(self):
-    plt.draw()
-
-
 
