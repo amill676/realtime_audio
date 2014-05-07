@@ -317,3 +317,13 @@ def add_frame(mat, frame):
   else:
     mat[:-1] = mat[1:]
     mat[-1] = frame
+
+def add_3d_frame(mat, frame):
+  """
+  Update a 3d matrix of frames given a new frame. 
+  :param mat: m x n x p matrix with n frames, each of m x p dimensions
+  :param frame: new frame to put in last column of matrix. Should be matrix
+                of m x p dimensions
+  """
+  mat[:, :-1, :] = mat[:, 1:, :]
+  mat[:, -1, :] = frame

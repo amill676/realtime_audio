@@ -2,25 +2,26 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import pa_tools.constants as consts
-from hemisphereplot import HemispherePlot
+from filterhemisphereplot import FilterHemispherePlot
 import plottools as ptools
-from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
-class ParticleHemispherePlot(HemispherePlot):
+class ParticleHemispherePlot(FilterHemispherePlot):
   """
   Class for plotting in a 3d hemisphere
   """
-  def __init__(self, n_particles, particle_color='b'):
-    HemispherePlot.__init__(self)
+  def __init__(self, n_particles, particle_color='b', n_estimates=0, n_past_estimates=1):
+    FilterHemispherePlot.__init__(
+        self, n_estimates=n_estimates, n_past_estimates=n_past_estimates)
     self._n_particles = n_particles
     self._particle_color = particle_color
     self._setup_particles()
-    self._setup_estimate()
+    self._setup_estimates()
 
-  def update(self, particles, weights):
+  def update(self, particles, weights, estimates=None):
     self._update_particle_locs(particles)
     self._update_particle_weights(weights)
-    self._update_estimate(particles, weights)
+    if estimates is not None:
+      self._update_estimates(estimates)
     self._update_figure()
 
   def _setup_particles(self):
@@ -28,25 +29,8 @@ class ParticleHemispherePlot(HemispherePlot):
     self._scatter = self._ax.scatter(z, z, z, 
         facecolors=self._particle_color, edgecolors='none')
     # Store colors for modifying
-    color = self._scatter.get_facecolors()
-    self._colors = np.kron(np.ones((self._n_particles, 1)), color)
-
-  def _setup_estimate(self):
-    # Current esetimate vector
-    self._estimate_plot, = self._ax.plot([0, 0], [0, 0], [0, 0], 'k')
-
-    # Previous estimate points
-    self._n_previous_estimates = 50
-    self._estimates = np.zeros((3, self._n_previous_estimates))
-    # Setup color fading
-    self._estimate_base_color = np.array([1, 0, 0, 1])
-    self._estimate_colors = np.kron(np.ones((self._n_previous_estimates, 1)), 
-                                    self._estimate_base_color)
-    self._estimate_colors[:, 3] = np.linspace(0, 1, self._n_previous_estimates)
-    # Create 3d linecollection for storing lines between past estimates
-    self._estimate_lc = Line3DCollection(self._segments_from_vectors, lw=2)
-    self._estimate_lc.set_color(self._estimate_colors[1:])
-    self._ax.add_collection3d(self._estimate_lc)
+    weight_color = self._scatter.get_facecolors()
+    self._weight_colors = np.kron(np.ones((self._n_particles, 1)), weight_color)
 
   def _update_particle_locs(self, particles):
     part_norm = np.sum(particles ** 2, axis=1)
@@ -56,32 +40,7 @@ class ParticleHemispherePlot(HemispherePlot):
     ptools.update_3d_scatter(self._scatter, particles)
 
   def _update_particle_weights(self, weights):
-    self._colors[:, 3] = np.minimum(weights,  1)
-    self._scatter.set_facecolors(self._colors)
+    self._weight_colors[:, 3] = np.minimum(weights,  1)
+    self._scatter.set_facecolors(self._weight_colors)
     self._scatter._sizes = weights * 1000
-
-  def _update_estimate(self, particles, weights):
-    # Update vector estimate
-    estimate = weights.dot(particles)
-    self._estimate_plot.set_xdata([0, estimate[0]])
-    self._estimate_plot.set_ydata([0, estimate[1]])
-    self._estimate_plot.set_3d_properties([0, estimate[2]])
-
-    # Update previous estimates
-    self._add_frame(self._estimates, estimate)
-    #ptools.update_3d_scatter(self._estimate_scat, self._estimates.T)
-    segments = self._segments_from_vectors(self._estimates)
-    self._estimate_lc.set_segments(self._segments_from_vectors(self._estimates))
-
-  def _segments_from_vectors(self, vectors):
-    """
-    Create array of segments from an array of different vectors. This
-    will create a block matrix that can be used as the argument to a 
-    LineCOllection or Line3DCollection object. 
-    Thus it will be of size N x 2 x d, where N is the number of vector
-    points and d is the number of dimensions in the vector
-    :param vectors: d x N array where each column is a vector point
-    """
-    transposed = vectors.transpose().reshape(-1, 1, 3)
-    return np.hstack((transposed[:-1], transposed[1:]))
 

@@ -298,7 +298,7 @@ def localize():
         #particle_plot, estimate_plot = setup_particle_plot(ax, 'b', 'k')
         ##particle_plot2, estimate_plot2 = setup_particle_plot(ax, 'g', 'r')
         #plt.show(block=False)
-        particle_plot = ParticleHemispherePlot(N_PARTICLES)
+        particle_plot = ParticleHemispherePlot(N_PARTICLES, n_estimates=2, n_past_estimates=50)
     if PLOT_POLAR:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='polar')
@@ -342,6 +342,8 @@ def localize():
                 dfts = stft.getDFTs()
                 rffts = mat.to_all_real_matlab_format(dfts)
                 d, energy = localizer.get_distribution_real(rffts[:, :, 0], 'gcc') # Use first hop
+                # Find ml_est
+                ml_est = direcs[:, np.argmax(d)]
                 #print energy
                 #if energy < 2500:
                 #    continue
@@ -354,8 +356,6 @@ def localize():
                 #w2 = np.asarray(post2.weights)
                 #ps2 = np.asarray(post2.particles)
                 #estimate2 = w2.dot(ps2)
-                #ind = np.argmax(d)
-                #u = 1.5 * direcs[:, ind]  # Direction of arrival
                 if DO_TRACK and count % TRACKING_FREQ == 0:
                     #v = np.array([1, 0, 1])
                     v = estimate
@@ -380,7 +380,8 @@ def localize():
                         #plot_particles(particle_plot, estimate_plot, post.particles, estimate)
                         #plot_particles(particle_plot2, estimate_plot2, post2.particles, estimate2)
                         #plt.draw()
-                        particle_plot.update(ps, w)
+                        estimate = w.dot(ps)
+                        particle_plot.update(ps, w, [ml_est, estimate])
                     if PLOT_CARTES:
                         ax.cla()
                         ax.grid(False)
