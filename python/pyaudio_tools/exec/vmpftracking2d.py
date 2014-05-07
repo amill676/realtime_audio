@@ -14,6 +14,7 @@ import pa_tools.constants as consts
 import mattools.mattools as mat
 from pa_tools.audiohelper import AudioHelper
 from pa_tools.audiobuffer import AudioBuffer
+from pa_tools.commandlistener import CommandListener
 from pa_tools.stftmanager import StftManager
 from pa_tools.vonmisestrackinglocalizer import VonMisesTrackingLocalizer
 from pa_tools.beamformer import BeamFormer
@@ -69,8 +70,9 @@ np.set_printoptions(precision=4, suppress=True)
 # Setup mics
 mic_layout = np.array([[.03, 0], [-.01, 0], [.01, 0], [-.03, 0]])
 # Track whether we have quit or not
+
+# Global variable used to end pa buffer read/write calls
 done = False
-switch_beamforming = False  # Switch beamforming from on to off or off to on
 
 # Events for signaling new data is available
 audio_produced_event = threading.Event()
@@ -122,19 +124,6 @@ def process_dft_buf(buf):
         if i > FFT_LENGTH / 16:
             buf[i] = 0
     pass
-
-
-def check_for_quit():
-    global done
-    global switch_beamforming
-    while True:
-        read_in = raw_input()
-        if read_in == "q":
-            print "User has chosen to quit."
-            done = True
-            break
-        if read_in == "b":
-            switch_beamforming = True
 
 
 def print_dfts(dfts):
@@ -291,8 +280,9 @@ def plot_particles(particle_plots, estim_handle, particles, weights, estimate):
     return particle_plots, estim_handle
 
 def localize():
-    global switch_beamforming
+    # Global variables that may be set in this function
     global DO_BEAMFORM
+    global done
     # Setup search space
     source_plane = OrientedSourcePlane(SOURCE_PLANE_NORMAL, 
                                        SOURCE_PLANE_UP,
@@ -302,6 +292,7 @@ def localize():
     # Setup pyaudio instances
     pa = pyaudio.PyAudio()
     helper = AudioHelper(pa)
+    listener = CommandListener()
     localizer = VonMisesTrackingLocalizer(mic_positions=mic_layout,
                                       search_space=space,
                                       n_particles=N_PARTICLES,
@@ -370,8 +361,9 @@ def localize():
     out_stream.start_stream()
 
     # Start thread to check for user quit
-    quit_thread = threading.Thread(target=check_for_quit)
-    quit_thread.start()
+    listener.start_polling()
+    #quit_thread = threading.Thread(target=check_for_quit)
+    #quit_thread.start()
 
     # Setup directions and alignment matrices
     direcs = localizer.get_directions()
@@ -428,13 +420,12 @@ def localize():
 
     count = 0
     try:
-        global done
         while in_stream.is_active() or out_stream.is_active():
+            done = listener.quit()
             data_available = in_buf.wait_for_read(WINDOW_LENGTH, TIMEOUT)
             if data_available:
-                if switch_beamforming:
+                if listener.switch_beamforming():
                     DO_BEAMFORM = not DO_BEAMFORM
-                    switch_beamforming = False
                     # Get data from the circular buffer
                 data = in_buf.read_samples(WINDOW_LENGTH)
                 # Perform an stft
@@ -523,7 +514,7 @@ def localize():
 
     except KeyboardInterrupt:
         print "Program interrupted"
-        done = True
+        listener.set_quit(True)
 
 
     print "Cleaning up"

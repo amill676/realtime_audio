@@ -13,6 +13,18 @@ class RealtimePlot(object):
     # setup without making any assumptions
     pass
 
+  def get_figure(self):
+    """
+    Return the figure associated with this plot
+    """
+    return self._figure
+
+  def get_axes(self):
+    """
+    Return the axes associated with this plot
+    """
+    return self._ax
+
   def _setup_figure(self, projection=None):
     self._figure = plt.figure()
     if projection is None:

@@ -14,11 +14,13 @@ import mattools.mattools as mat
 import pa_tools.plottools as plotting
 from pa_tools.audiohelper import AudioHelper
 from pa_tools.audiobuffer import AudioBuffer
+from pa_tools.commandlistener import CommandListener
 from pa_tools.stftmanager import StftManager
 from pa_tools.kalmantrackinglocalizer import KalmanTrackingLocalizer
 from pa_tools.gridtrackinglocalizer import GridTrackingLocalizer
 from pa_tools.beamformer import BeamFormer
 from plottools.filterplot import FilterPlot
+from plottools.plotmanager import PlotManager
 from searchspace import SearchSpace
 from searchspace import OrientedSourcePlane
 from plottools.filterplot import FilterPlot
@@ -87,7 +89,6 @@ mic_layout = np.array([[.03, 0], [-.01, 0], [.01, 0], [-.03, 0]])
 # Track whether we have quit or not
 done = False
 switch_beamforming = False  # Switch beamforming from on to off or off to on
-save_fig = False  # For saving figure to file
 
 # Events for signaling new data is available
 audio_produced_event = threading.Event()
@@ -138,36 +139,6 @@ def process_dft_buf(buf):
         if i > FFT_LENGTH / 16:
             buf[i] = 0
     pass
-
-
-def check_for_quit():
-    global done
-    global switch_beamforming
-    global save_fig
-    while True:
-        read_in = raw_input()
-        if read_in == "q":
-            print "User has chosen to quit."
-            done = True
-            break
-        if read_in == "b":
-            switch_beamforming = True
-        if read_in == "s":
-            save_fig = True
-
-def get_fig_name():
-    global FIG_OUTFILE_NUMBER
-    global FIG_DIRECTORY_NAME
-    global FIG_OUTFILE_BASENAME
-    if not os.path.exists('figures'):
-        os.makedirs(FIG_DIRECTORY_NAME)
-    filename = FIG_DIRECTORY_NAME + '/' + FIG_OUTFILE_BASENAME + \
-            str(FIG_OUTFILE_NUMBER) + '.png'
-    while os.path.exists(filename):
-        FIG_OUTFILE_NUMBER += 1
-        filename = FIG_DIRECTORY_NAME + '/' + FIG_OUTFILE_BASENAME + \
-                str(FIG_OUTFILE_NUMBER) + '.png'
-    return filename
 
 def print_dfts(dfts):
     print "Printing DFTS:"
@@ -276,9 +247,10 @@ def overlay_distribution(image_handle, plot_handle, cvimage, distr):
 
 
 def localize():
+    # Global variables that may be set in this function
     global switch_beamforming
     global DO_BEAMFORM
-    global save_fig
+    global done
     # Setup search space
     source_plane = OrientedSourcePlane(SOURCE_PLANE_NORMAL, 
                                        SOURCE_PLANE_UP,
@@ -288,6 +260,8 @@ def localize():
     # Setup pyaudio instances
     pa = pyaudio.PyAudio()
     helper = AudioHelper(pa)
+    listener = CommandListener()
+    plot_manager = PlotManager()
     #localizer = GridTrackingLocalizer(mic_positions=mic_layout,
     #                                  search_space=space,
     #                                  source_cov=SOURCE_LOCATION_COV,
@@ -345,8 +319,7 @@ def localize():
     out_stream.start_stream()
 
     # Start thread to check for user quit
-    quit_thread = threading.Thread(target=check_for_quit)
-    quit_thread.start()
+    listener.start_polling()
 
     # Setup directions and alignment matrices
     direcs = localizer.get_directions()
@@ -391,6 +364,7 @@ def localize():
     if PLOT_2D:
         n_past_samples = 200
         filter_plot = FilterPlot(N_THETA, n_past_samples, 2)
+        save_plot = filter_plot # For saving figures
     if VIDEO_OVERLAY:
         vc = cv2.VideoCapture(0)
         video_handle, video_plot = setup_video_handle(720, 1280)
@@ -402,19 +376,15 @@ def localize():
 
     count = 0
     try:
-        global done
         while in_stream.is_active() or out_stream.is_active():
+            done = listener.quit()
             data_available = in_buf.wait_for_read(WINDOW_LENGTH, TIMEOUT)
             if data_available:
-                if switch_beamforming:
+                if listener.switch_beamforming():
                     DO_BEAMFORM = not DO_BEAMFORM
-                    switch_beamforming = False
-                    # Get data from the circular buffer
-                if save_fig:
-                    filename = get_fig_name()
-                    fig.savefig(filename, facecolor='white', edgecolor='none')
-                    print "Figure saved to %s" % filename
-                    save_fig = False
+                if listener.savefig():
+                    plot_manager.savefig(save_plot.get_figure())
+                # Get data from circular buffer
                 data = in_buf.read_samples(WINDOW_LENGTH)
                 # Perform an stft
                 stft.performStft(data)
@@ -505,7 +475,7 @@ def localize():
 
     except KeyboardInterrupt:
         print "Program interrupted"
-        done = True
+        listener.set_quit(True)
 
 
     print "Cleaning up"

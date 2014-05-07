@@ -5,7 +5,7 @@ class AudioHelper(object):
     """
     Class for managing pyaudio devices. Provides extra tools
     for choosing, displaying, and managing available devices
-    in conjunction with pyaudio
+    in conjunction with pyaudio. Also provides tools for 
     """
 
     def __init__(self, pa, n_channels=1):
