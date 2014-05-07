@@ -13,6 +13,7 @@ import pa_tools.constants as consts
 import mattools.mattools as mat
 from pa_tools.audiohelper import AudioHelper
 from pa_tools.audiobuffer import AudioBuffer
+from pa_tools.commandlistener import CommandListener
 from pa_tools.stftmanager import StftManager
 from pa_tools.vonmisestrackinglocalizer import VonMisesTrackingLocalizer
 from pa_tools.beamformer import BeamFormer
@@ -20,6 +21,7 @@ from searchspace import SearchSpace
 from searchspace import OrientedSourcePlane
 from camera import SonyCamera
 from plottools.particlehemisphereplot import ParticleHemispherePlot
+from plottools.plotmanager import PlotManager
 
 
 # Setup constants
@@ -130,20 +132,6 @@ def process_dft_buf(buf):
             buf[i] = 0
     pass
 
-
-def check_for_quit():
-    global done
-    global switch_beamforming
-    while True:
-        read_in = raw_input()
-        if read_in == "q":
-            print "User has chosen to quit."
-            done = True
-            break
-        if read_in == "b":
-            switch_beamforming = True
-
-
 def print_dfts(dfts):
     print "Printing DFTS:"
     print dfts
@@ -211,6 +199,7 @@ def plot_particles(part_plot_handle, estim_plot_handle, particles, estimate):
 def localize():
     global switch_beamforming
     global DO_BEAMFORM
+    global done
     # Setup search space
     source_plane = OrientedSourcePlane(SOURCE_PLANE_NORMAL, 
                                        SOURCE_PLANE_UP,
@@ -226,6 +215,8 @@ def localize():
     # Setup pyaudio instances
     pa = pyaudio.PyAudio()
     helper = AudioHelper(pa)
+    listener = CommandListener()
+    plot_manager = PlotManager('3dparticles')
     localizer = VonMisesTrackingLocalizer(mic_positions=mic_layout,
                                       search_space=space,
                                       n_particles=N_PARTICLES,
@@ -284,8 +275,7 @@ def localize():
     out_stream.start_stream()
 
     # Start thread to check for user quit
-    quit_thread = threading.Thread(target=check_for_quit)
-    quit_thread.start()
+    listener.start_polling()
 
     # Setup directions and alignment matrices
     direcs = localizer.get_directions()
@@ -293,12 +283,7 @@ def localize():
 
     # Plotting setup
     if PLOT_PARTICLES:
-        #fig = plt.figure()
-        #ax = fig.add_subplot(111, projection='3d')
-        #particle_plot, estimate_plot = setup_particle_plot(ax, 'b', 'k')
-        ##particle_plot2, estimate_plot2 = setup_particle_plot(ax, 'g', 'r')
-        #plt.show(block=False)
-        particle_plot = ParticleHemispherePlot(N_PARTICLES, n_estimates=2, n_past_estimates=50)
+        particle_plot = ParticleHemispherePlot(N_PARTICLES, n_estimates=2, n_past_estimates=70)
     if PLOT_POLAR:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='polar')
@@ -327,8 +312,8 @@ def localize():
 
     count = 0
     try:
-        global done
         while in_stream.is_active() or out_stream.is_active():
+            done = listener.quit()
             data_available = in_buf.wait_for_read(WINDOW_LENGTH, TIMEOUT)
             if data_available:
                 if switch_beamforming:
@@ -377,11 +362,10 @@ def localize():
                 # Take care of plotting
                 if count % 1 == 0:
                     if PLOT_PARTICLES:
-                        #plot_particles(particle_plot, estimate_plot, post.particles, estimate)
-                        #plot_particles(particle_plot2, estimate_plot2, post2.particles, estimate2)
-                        #plt.draw()
                         estimate = w.dot(ps)
                         particle_plot.update(ps, w, [ml_est, estimate])
+                        if listener.savefig():
+                          plot_manager.savefig(particle_plot.get_figure())
                     if PLOT_CARTES:
                         ax.cla()
                         ax.grid(False)
@@ -434,7 +418,7 @@ def localize():
 
     except KeyboardInterrupt:
         print "Program interrupted"
-        done = True
+        listener.set_quit(True)
 
 
     print "Cleaning up"

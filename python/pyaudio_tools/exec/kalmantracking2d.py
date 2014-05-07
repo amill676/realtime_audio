@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 
 import pa_tools.constants as consts
 import mattools.mattools as mat
-import pa_tools.plottools as plotting
 from pa_tools.audiohelper import AudioHelper
 from pa_tools.audiobuffer import AudioBuffer
 from pa_tools.commandlistener import CommandListener
@@ -21,6 +20,7 @@ from pa_tools.gridtrackinglocalizer import GridTrackingLocalizer
 from pa_tools.beamformer import BeamFormer
 from plottools.filterplot import FilterPlot
 from plottools.plotmanager import PlotManager
+import plottools.plottools as ptools
 from searchspace import SearchSpace
 from searchspace import OrientedSourcePlane
 from plottools.filterplot import FilterPlot
@@ -82,7 +82,7 @@ MIC_ABOVE = np.array([0, 0, 1])
 # Setup printing
 np.set_printoptions(precision=2, suppress=True)
 # Setup figure size
-plotting.setup_fullpage_figsize()
+ptools.setup_fullpage_figsize()
 
 # Setup mics
 mic_layout = np.array([[.03, 0], [-.01, 0], [.01, 0], [-.03, 0]])
@@ -185,34 +185,6 @@ def make_wav():
     # Write out to file
     outwav.writeframes(data_bytes)
     outwav.close()
-
-def setup_2d_handle(ax, n_past_samples, est_color, title='', discard_edge_n = 0):
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
-    sample_mat = np.zeros((N_THETA, n_past_samples))
-    estimate_mat = np.zeros((n_past_samples,))
-    plot_2d = ax.imshow(sample_mat, vmin=0, vmax=.03, cmap='bone')
-    state_est_plot, = plt.plot(estimate_mat, est_color)
-    #state_est_plot, = plt.plot(estimate_mat, 'b', lw=3)
-    ax.set_ylim(discard_edge_n, N_THETA-discard_edge_n)
-    ax.set_xlim(0, n_past_samples)
-    ax.set_title(title)
-    ax.set_xlabel('time')
-    ax.set_ylabel('DOA')
-    return plot_2d, state_est_plot, sample_mat, estimate_mat
-
-def update_2d_plot(distr, plot_2d, state_est_plot, sample_mat, estimate_mat):
-    distr -= np.min(distr)
-    distr /= (np.sum(distr) + consts.EPS)
-    # UPdate sample_matrix
-    sample_mat[:, :-1] = sample_mat[:, 1:]
-    sample_mat[:, -1] = distr
-    # Update estimate matrix
-    maxind = np.argmax(distr)
-    estimate_mat[:-1] = estimate_mat[1:]
-    estimate_mat[-1] = maxind
-    plot_2d.set_array(sample_mat)
-    state_est_plot.set_ydata(estimate_mat)
 
 def setup_video_handle(m, n):
     """
