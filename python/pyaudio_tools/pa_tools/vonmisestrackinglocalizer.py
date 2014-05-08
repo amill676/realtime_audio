@@ -234,7 +234,7 @@ class VonMisesTrackingLocalizer(TrackingLocalizer):
     """
     if self._get_effective_n_dimensions() == 3:
       return mat
-    return np.hstack((np.asarray(mat), np.zeros((1, mat.shape[0]))))
+    return np.hstack((np.asarray(mat), np.zeros((mat.shape[0], 1))))
 
   def _get_estimate(self):
       w = np.asarray(self._posterior.weights)

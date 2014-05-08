@@ -296,7 +296,7 @@ def localize():
     pa = pyaudio.PyAudio()
     helper = AudioHelper(pa)
     listener = CommandListener()
-    plot_manager = PlotManager('vmpf_2d_weightings_')
+    plot_manager = PlotManager('vmpf_2d_srp_')
     localizer = VonMisesTrackingLocalizer(mic_positions=mic_layout,
                                       search_space=space,
                                       n_particles=N_PARTICLES,

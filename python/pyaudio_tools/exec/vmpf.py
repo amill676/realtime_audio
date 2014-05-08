@@ -218,7 +218,7 @@ def localize():
     pa = pyaudio.PyAudio()
     helper = AudioHelper(pa)
     listener = CommandListener()
-    plot_manager = PlotManager('3d_vmf_switching_')
+    plot_manager = PlotManager('3d_vm_srp_')
     localizer = VonMisesTrackingLocalizer(mic_positions=mic_layout,
                                       search_space=space,
                                       n_particles=N_PARTICLES,
@@ -300,8 +300,8 @@ def localize():
         ml_color = 'r'
         color = 'b';
         particle_plot = ParticleHemispherePlot(
-            N_PARTICLES, color, n_estimates=2, n_past_estimates=100, 
-            plot_lines=[False, True], elev=60, azim=45, estim_colors=[ml_color, color])
+        N_PARTICLES, color, n_estimates=2, n_past_estimates=100, 
+        plot_lines=[False, True], elev=60, azim=45, estim_colors=[ml_color, color])
         #color = 'b'
         #particle_plot2 = ParticleHemispherePlot(
         #    N_PARTICLES, color, n_estimates=2, n_past_estimates=100, 
