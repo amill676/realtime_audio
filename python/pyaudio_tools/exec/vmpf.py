@@ -283,7 +283,9 @@ def localize():
 
     # Plotting setup
     if PLOT_PARTICLES:
-        particle_plot = ParticleHemispherePlot(N_PARTICLES, n_estimates=2, n_past_estimates=70)
+        particle_plot = ParticleHemispherePlot(
+            N_PARTICLES, 'g', n_estimates=2, n_past_estimates=70, 
+            plot_lines=[True, True], elev=45, azim=45)
     if PLOT_POLAR:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='polar')

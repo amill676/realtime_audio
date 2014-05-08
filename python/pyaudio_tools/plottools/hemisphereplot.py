@@ -7,9 +7,16 @@ from realtimeplot import RealtimePlot
 class HemispherePlot(RealtimePlot):
   """
   Class for plotting in a 3d hemisphere
+
+  :param elev: point of view elevation angle for plot
+  :param azim: point of view azimuthal angle for plot
+  
+  All other keyword arguments are passed to RealtimePlot
   """
-  def __init__(self):
-    RealtimePlot.__init__(self)
+  def __init__(self, elev=None, azim=None, **kwargs):
+    RealtimePlot.__init__(self, **kwargs)
+    self._elev_ang = elev
+    self._azim_ang = azim
     self._setup_figure()
 
   def _setup_figure(self):
@@ -18,6 +25,7 @@ class HemispherePlot(RealtimePlot):
     self._ax.set_xlim(-self._plot_limit, self._plot_limit)
     self._ax.set_ylim(-self._plot_limit, self._plot_limit)
     self._ax.set_zlim(0, self._plot_limit)
+    self._ax.view_init(elev=self._elev_ang, azim=self._azim_ang)
     self._setup_wireframe()
 
   def _setup_wireframe(self):
