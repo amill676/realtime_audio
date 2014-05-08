@@ -21,6 +21,8 @@ from pa_tools.beamformer import BeamFormer
 from searchspace import SearchSpace
 from searchspace import OrientedSourcePlane
 from plottools.particlefilterplot import ParticleFilterPlot
+from plottools.plotmanager import PlotManager
+import plottools.plottools as ptools
 
 
 # Setup constants
@@ -59,13 +61,14 @@ CAMERA_LOC = np.array([0, 0, 0])
 TIME_STEP = .1
 MIC_FORWARD = np.array([0, 1, 0])
 MIC_ABOVE = np.array([0, 0, 1])
-STATE_KAPPA = 90  
+STATE_KAPPA = 100  
 OUTLIER_PROB = .9
-OBS_KAPPA = 5
+OBS_KAPPA = 25
 N_PARTICLES = 50
 
 # Setup printing
 np.set_printoptions(precision=4, suppress=True)
+#ptools.setup_halfpage_figsize()
 
 # Setup mics
 mic_layout = np.array([[.03, 0], [-.01, 0], [.01, 0], [-.03, 0]])
@@ -293,6 +296,7 @@ def localize():
     pa = pyaudio.PyAudio()
     helper = AudioHelper(pa)
     listener = CommandListener()
+    plot_manager = PlotManager('vmpf_2d_obskap_25_')
     localizer = VonMisesTrackingLocalizer(mic_positions=mic_layout,
                                       search_space=space,
                                       n_particles=N_PARTICLES,
@@ -362,8 +366,6 @@ def localize():
 
     # Start thread to check for user quit
     listener.start_polling()
-    #quit_thread = threading.Thread(target=check_for_quit)
-    #quit_thread.start()
 
     # Setup directions and alignment matrices
     direcs = localizer.get_directions()
@@ -490,6 +492,8 @@ def localize():
                         noisy = THETA_SPACE[np.argmax(dist)]
                         estimate = w.dot(theta_parts)
                         particle_plot.update(dist, theta_parts, w, [estimate, noisy])
+                        if listener.savefig():
+                            plot_manager.savefig(particle_plot.get_figure())
                     if VIDEO_OVERLAY:
                         _, cvimage = vc.read()
                         overlay_particles(video_handle, vid_part_plots, vid_estim_plot, \

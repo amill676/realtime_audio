@@ -118,18 +118,18 @@ class FilterHemispherePlot(HemispherePlot):
     not plot the segments, which is considered in constructin the relevant
     structures
     """
-      if self._do_plot_lines:
-        # Create 3d linecollection for storing lines between past estimates
-        self._estimate_lcs = []
-        for i in range(self._n_estimates):
-          # Line collection
-          if self._plot_lines[i]:
-            lc = Line3DCollection(self._segments_from_vectors(self._estimates), lw=1)
-            lc.set_color(self._estimate_colors[:-1, :, i])
-            self._ax.add_collection3d(lc)
-            self._estimate_lcs.append(lc)
-          else:
-            self._estimate_lcs.append(None) # Place holder so indexing still works
+    if self._do_plot_lines:
+      # Create 3d linecollection for storing lines between past estimates
+      self._estimate_lcs = []
+      for i in range(self._n_estimates):
+        # Line collection
+        if self._plot_lines[i]:
+          lc = Line3DCollection(self._segments_from_vectors(self._estimates), lw=1)
+          lc.set_color(self._estimate_colors[:-1, :, i])
+          self._ax.add_collection3d(lc)
+          self._estimate_lcs.append(lc)
+        else:
+          self._estimate_lcs.append(None) # Place holder so indexing still works
 
   def _setup_estimate_vecs(self):
     """

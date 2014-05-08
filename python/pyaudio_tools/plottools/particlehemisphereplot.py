@@ -72,5 +72,5 @@ class ParticleHemispherePlot(FilterHemispherePlot):
     """
     self._weight_colors[:, 3] = np.minimum(weights,  1)
     self._scatter.set_facecolors(self._weight_colors)
-    self._scatter._sizes = weights * 1000
+    self._scatter._sizes = weights * 2000
 

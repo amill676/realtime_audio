@@ -22,6 +22,7 @@ from searchspace import OrientedSourcePlane
 from camera import SonyCamera
 from plottools.particlehemisphereplot import ParticleHemispherePlot
 from plottools.plotmanager import PlotManager
+import plottools.plottools as ptools
 
 
 # Setup constants
@@ -67,6 +68,7 @@ N_PARTICLES = 80
 
 # Setup printing
 np.set_printoptions(precision=4, suppress=True)
+#ptools.setup_fullpage_figsize()
 
 # Setup mics
 R = 0.0375
@@ -216,7 +218,7 @@ def localize():
     pa = pyaudio.PyAudio()
     helper = AudioHelper(pa)
     listener = CommandListener()
-    plot_manager = PlotManager('3dparticles')
+    plot_manager = PlotManager('3d_vm_kappa_5_energy_')
     localizer = VonMisesTrackingLocalizer(mic_positions=mic_layout,
                                       search_space=space,
                                       n_particles=N_PARTICLES,
@@ -284,8 +286,8 @@ def localize():
     # Plotting setup
     if PLOT_PARTICLES:
         particle_plot = ParticleHemispherePlot(
-            N_PARTICLES, 'g', n_estimates=2, n_past_estimates=70, 
-            plot_lines=[True, True], elev=45, azim=45)
+            N_PARTICLES, 'b', n_estimates=2, n_past_estimates=20, 
+            plot_lines=[True, True], elev=60, azim=45)
     if PLOT_POLAR:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='polar')
@@ -332,8 +334,8 @@ def localize():
                 # Find ml_est
                 ml_est = direcs[:, np.argmax(d)]
                 #print energy
-                #if energy < 2500:
-                #    continue
+                if energy < 1500:
+                    continue
                 post = localizer.get_distribution(rffts[:, :, 0]) # PyBayes EmpPdf
                 #post2 = localizer2.get_distribution(rffts[:, :, 0])
                 # Get estimate from particles
