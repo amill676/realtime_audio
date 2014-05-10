@@ -41,14 +41,14 @@ THETA_SPACE = np.linspace(0, np.pi, N_THETA)
 N_PHI = 1
 PLOT_POLAR = False
 PLOT_CARTES = False
-PLOT_2D = True
+PLOT_2D = False
 EXTERNAL_PLOT = False
 PLAY_AUDIO = False
 DO_BEAMFORM = False
 RECORD_AUDIO = False
 VIDEO_OVERLAY = False
 SAVE_FRAMES = False
-PLOT_PARTICLES = False
+PLOT_PARTICLES = True
 OUTFILE_NAME = 'nonbeamformed.wav'
 TIMEOUT = 1
 # Source planes and search space
@@ -401,7 +401,7 @@ def localize():
         spher_coords = localizer.get_spher_directions()
         theta = spher_coords[1, :]
         pol_plot, = plt.plot(theta, np.ones(theta.shape))
-        post_plot, = plt. plot(theta, np.ones(theta.shape), 'green')
+        post_plot, = plt.plot(theta, np.ones(theta.shape), 'green')
         ax.set_ylim(0, 1)
         ax.set_xlim(0, np.pi)
         if DO_BEAMFORM:
@@ -411,7 +411,7 @@ def localize():
         estimate_colors = ['b', 'r', 'g', 'k'] # Noisy, estimate, class0, class1
         particle_plot = ParticleFilterPlot(N_PARTICLES, 
             n_space=N_THETA, n_past_samples=n_past_samples, 
-            n_estimates=4, particle_color='r', distr_cmap='bone',
+            n_estimates=3, particle_color='r', distr_cmap='bone',
             estimate_colors=estimate_colors)
     if VIDEO_OVERLAY:
         fig = plt.figure()
@@ -498,7 +498,8 @@ def localize():
                         estimate = w.dot(theta_parts)
                         spike_estimate = joint_w[0, :].dot(theta_parts) /(np.sum(joint_w[0, :]) + consts.EPS)
                         slab_estimate = joint_w[1, :].dot(theta_parts) / (np.sum(joint_w[1, :]) + consts.EPS)
-                        particle_plot.update(dist, theta_parts, w, [noisy, estimate, spike_estimate, slab_estimate])
+                        particle_plot.update(dist, theta_parts, w, 
+                            [noisy, estimate, spike_estimate])#, slab_estimate])
                         if listener.savefig():
                             plot_manager.savefig(particle_plot.get_figure())
                     if VIDEO_OVERLAY:

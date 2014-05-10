@@ -90,7 +90,7 @@ class VonMisesTrackingLocalizer(TrackingLocalizer):
       raise ValueError("Outlier probability must be between 0 and 1")
     self._outlier_rv = pb.RV(pb.RVComp(ndim, 'outlier'))
     self._outlier_mu = np.hstack((np.array([0, -1.]), np.zeros((ndim-2,))))
-    self._outlier_kappa = 1
+    self._outlier_kappa = .001
     self._outlier_prob = outlier_prob # Probability of generation from background pdf
     self._outlier_distribution = \
       VonMisesPdf(self._outlier_mu, self._outlier_kappa, self._outlier_rv)
