@@ -8,8 +8,8 @@ class ParticleFilterPlot(FilterPlot):
   Class for plotting particle filter over time. y axis will be state space
   while x axis will be time
   """
-  def __init__(self, n_space, n_past_samples, n_particles, n_estimates=0, particle_color='b', title=''):
-    FilterPlot.__init__(self, n_space, n_past_samples, n_estimates, title)
+  def __init__(self, n_particles, particle_color='b', *args, **kwargs):
+    FilterPlot.__init__(self, *args, **kwargs)
     self._n_particles = n_particles
     self._particle_color = particle_color
     self._setup_particles()

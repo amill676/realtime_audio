@@ -8,10 +8,8 @@ class RealtimePlot(object):
   """
   Class for plotting with realtime updates
   """
-  def __init__(self):
-    # Don't do anything. This will allow subclasses to customize figure
-    # setup without making any assumptions
-    pass
+  def __init__(self, title=''):
+    self._title = title
 
   def get_figure(self):
     """
@@ -31,6 +29,7 @@ class RealtimePlot(object):
       self._ax = self._figure.add_subplot(111)
     else:
       self._ax = self._figure.add_subplot(111, projection=projection)
+    self._ax.set_title(self._title)
     plt.show(block=False)
 
   def update(self, *args, **kwargs):

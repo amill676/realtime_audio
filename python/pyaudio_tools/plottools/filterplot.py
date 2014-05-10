@@ -9,11 +9,10 @@ class FilterPlot(RealtimePlot):
   Class for plotting observation distributions and filter estimates
   over time.
   """
-  def __init__(self, n_space, n_past_samples, n_estimates=0, title=''):
-    self._n_space = n_space
+  def __init__(self, n_past_samples, n_estimates=0, *args, **kwargs):
+    RealtimePlot.__init__(self, *args, **kwargs)
     self._n_past_samples = n_past_samples
     self._n_estimates = n_estimates
-    self._title = title
     self._setup()
 
   def _setup(self):
@@ -46,7 +45,6 @@ class FilterPlot(RealtimePlot):
     self._ax.set_ylim(0, np.pi)
     self._ax.set_xlim(0, self._n_past_samples-1)
     # Setup lables
-    self._ax.set_title(self._title)
     self._ax.set_xlabel('time')
     self._ax.set_ylabel('DOA')
 
