@@ -5,6 +5,7 @@ import pa_tools.constants as consts
 
 TEXTWIDTH = 469.0
 SUBFIG_SCALE = .45
+THIRDFIG_SCALE = .32
 
 def setup_figsize(pts, factor=1.0):
     """
@@ -34,6 +35,10 @@ def setup_fullpage_figsize():
 def setup_halfpage_figsize():
   setup_figsize(TEXTWIDTH, SUBFIG_SCALE)
   plt.locator_params(nbins=4)
+
+def setup_thirdpage_figsize():
+  setup_figsize(TEXTWIDTH, THIRDFIG_SCALE)
+  plt.locator_params(nbins=2)
 
 def get_fullpage_axis(fig):
   ax = fig.add_subplot(111)

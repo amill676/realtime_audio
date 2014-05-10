@@ -63,7 +63,7 @@ MIC_FORWARD = np.array([0, 1, 0])
 MIC_ABOVE = np.array([0, 0, 1])
 STATE_KAPPA = 100  
 OUTLIER_PROB = .9
-OBS_KAPPA = 25
+OBS_KAPPA = 10
 N_PARTICLES = 50
 
 # Setup printing
@@ -302,7 +302,7 @@ def localize():
                                       n_particles=N_PARTICLES,
                                       state_kappa=STATE_KAPPA,
                                       observation_kappa=OBS_KAPPA,
-                                      outlier_prob=0,
+                                      outlier_prob=.5,
                                       dft_len=FFT_LENGTH,
                                       sample_rate=SAMPLE_RATE,
                                       n_theta=N_THETA,
@@ -312,7 +312,7 @@ def localize():
                                       n_particles=N_PARTICLES,
                                       state_kappa=STATE_KAPPA,
                                       observation_kappa=OBS_KAPPA,
-                                      outlier_prob=.2,
+                                      outlier_prob=.5,
                                       dft_len=FFT_LENGTH,
                                       sample_rate=SAMPLE_RATE,
                                       n_theta=N_THETA,
@@ -322,7 +322,7 @@ def localize():
                                       n_particles=N_PARTICLES,
                                       state_kappa=STATE_KAPPA,
                                       observation_kappa=OBS_KAPPA,
-                                      outlier_prob=.999,
+                                      outlier_prob=.8,
                                       dft_len=FFT_LENGTH,
                                       sample_rate=SAMPLE_RATE,
                                       n_theta=N_THETA,
@@ -408,7 +408,7 @@ def localize():
             pol_beam_plot, = plt.plot(theta, np.ones(theta.shape), 'red')
     if PLOT_2D:
         n_past_samples = 100
-        particle_plot = ParticleFilterPlot(N_THETA, n_past_samples, N_PARTICLES, n_estimates=2)
+        particle_plot = ParticleFilterPlot(N_THETA, n_past_samples, N_PARTICLES, n_estimates=4, particle_color='r')
     if VIDEO_OVERLAY:
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -437,6 +437,7 @@ def localize():
                 rffts = mat.to_all_real_matlab_format(dfts)
                 d, energy = localizer.get_distribution_real(rffts[:, :, 0], 'gcc') # Use first hop
                 post = localizer.get_distribution(rffts[:, :, 0])
+                joint_w = localizer.get_joint_weights()
                 post2 = localizer2.get_distribution(rffts[:, :, 0])
                 post3 = localizer3.get_distribution(rffts[:, :, 0])
                 w = np.asarray(post.weights)
@@ -491,7 +492,9 @@ def localize():
                         theta_parts = np.arctan2(ps[:, 1], ps[:, 0])
                         noisy = THETA_SPACE[np.argmax(dist)]
                         estimate = w.dot(theta_parts)
-                        particle_plot.update(dist, theta_parts, w, [estimate, noisy])
+                        spike_estimate = joint_w[0, :].dot(theta_parts) /(np.sum(joint_w[0, :]) + consts.EPS)
+                        slab_estimate = joint_w[1, :].dot(theta_parts) / (np.sum(joint_w[1, :]) + consts.EPS)
+                        particle_plot.update(dist, theta_parts, w, [noisy, estimate, spike_estimate, slab_estimate])
                         if listener.savefig():
                             plot_manager.savefig(particle_plot.get_figure())
                     if VIDEO_OVERLAY:

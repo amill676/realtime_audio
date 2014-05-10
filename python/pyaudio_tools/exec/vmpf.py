@@ -62,8 +62,8 @@ MIC_ABOVE = np.array([0, 0, 1])
 CAM_FORWARD = np.array([0, 1, 0])
 CAM_ABOVE = np.array([0, 0, 1])
 STATE_KAPPA = 100
-OBS_KAPPA = 5
-OUTLIER_PROB = 0 
+OBS_KAPPA = 20
+OUTLIER_PROB = .7 
 N_PARTICLES = 80
 
 # Setup printing
@@ -229,16 +229,16 @@ def localize():
                                       sample_rate=SAMPLE_RATE,
                                       n_theta=N_THETA,
                                       n_phi=N_PHI)
-    #localizer2 = VonMisesTrackingLocalizer(mic_positions=mic_layout,
-    #                                  search_space=space,
-    #                                  n_particles=N_PARTICLES,
-    #                                  state_kappa=STATE_KAPPA,
-    #                                  observation_kappa=OBS_KAPPA,
-    #                                  outlier_prob=.8,
-    #                                  dft_len=FFT_LENGTH,
-    #                                  sample_rate=SAMPLE_RATE,
-    #                                  n_theta=N_THETA,
-    #                                  n_phi=N_PHI)
+    localizer2 = VonMisesTrackingLocalizer(mic_positions=mic_layout,
+                                      search_space=space,
+                                      n_particles=N_PARTICLES,
+                                      state_kappa=STATE_KAPPA,
+                                      observation_kappa=OBS_KAPPA,
+                                      outlier_prob=0,
+                                      dft_len=FFT_LENGTH,
+                                      sample_rate=SAMPLE_RATE,
+                                      n_theta=N_THETA,
+                                      n_phi=N_PHI)
     beamformer = BeamFormer(mic_layout, SAMPLE_RATE)
 
     # Setup STFT object
@@ -286,8 +286,8 @@ def localize():
     # Plotting setup
     if PLOT_PARTICLES:
         particle_plot = ParticleHemispherePlot(
-            N_PARTICLES, 'b', n_estimates=2, n_past_estimates=20, 
-            plot_lines=[True, True], elev=60, azim=45)
+            N_PARTICLES, 'b', n_estimates=3, n_past_estimates=100, 
+            plot_lines=[False, True, True], elev=60, azim=45)
     if PLOT_POLAR:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='polar')
@@ -315,6 +315,8 @@ def localize():
         plt.show(block=False)
 
     count = 0
+    estimate = np.array([1., 0., 0.])
+    estimate2 = np.array([1., 0., 0.])
     try:
         while in_stream.is_active() or out_stream.is_active():
             done = listener.quit()
@@ -334,16 +336,18 @@ def localize():
                 # Find ml_est
                 ml_est = direcs[:, np.argmax(d)]
                 #print energy
-                if energy < 1500:
-                    continue
+                #if energy < 1500:
+                #    continue
                 post = localizer.get_distribution(rffts[:, :, 0]) # PyBayes EmpPdf
-                #post2 = localizer2.get_distribution(rffts[:, :, 0])
+                post2 = localizer2.get_distribution(rffts[:, :, 0])
                 # Get estimate from particles
                 w = np.asarray(post.weights)
+                joint_w = localizer.get_joint_weights()
+                class_weights = localizer.get_class_weights()
+                #print joint_w[0, :]
                 ps = np.asarray(post.particles)
-                estimate = w.dot(ps)
-                #w2 = np.asarray(post2.weights)
-                #ps2 = np.asarray(post2.particles)
+                w2 = np.asarray(post2.weights)
+                ps2 = np.asarray(post2.particles)
                 #estimate2 = w2.dot(ps2)
                 if DO_TRACK and count % TRACKING_FREQ == 0:
                     #v = np.array([1, 0, 1])
@@ -366,10 +370,15 @@ def localize():
                 # Take care of plotting
                 if count % 1 == 0:
                     if PLOT_PARTICLES:
-                        estimate = w.dot(ps)
-                        particle_plot.update(ps, w, [ml_est, estimate])
-                        if listener.savefig():
-                          plot_manager.savefig(particle_plot.get_figure())
+                      estimate = w.dot(ps)
+                      estimate /= (mat.norm2(estimate) + consts.EPS)
+                      if class_weights[0] > .8:
+                        estimate2 = joint_w[1, :].dot(ps)
+                        estimate2 /= (mat.norm2(estimate2) + consts.EPS)
+                        #estimate2 = w2.dot(ps2)
+                      particle_plot.update(ps, joint_w[0, :], [ml_est, estimate2, estimate])
+                      if listener.savefig():
+                        plot_manager.savefig(particle_plot.get_figure())
                     if PLOT_CARTES:
                         ax.cla()
                         ax.grid(False)

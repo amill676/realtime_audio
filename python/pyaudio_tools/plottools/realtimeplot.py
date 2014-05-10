@@ -33,6 +33,9 @@ class RealtimePlot(object):
       self._ax = self._figure.add_subplot(111, projection=projection)
     plt.show(block=False)
 
+  def update(self, *args, **kwargs):
+    self._update_figure()
+
   def _update_figure(self):
     plt.draw()
 

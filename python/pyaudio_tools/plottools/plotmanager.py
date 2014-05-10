@@ -11,13 +11,14 @@ class PlotManager(object):
     self._out_file_number = 0 # For counting to avoid replacing figures
     self._setup_savefig_settings()
 
-  def savefig(self, fig):
+  def savefig(self, fig, filename=None):
     """
     Save figure to an image file. This will use the settings supplied at
     instantiation to name and locate the output file
     :param fig: matplotlib figure whose image will be saved
     """
-    filename = self._get_fig_file_name()
+    if filename is None:
+      filename = self._get_fig_file_name()
     fig.savefig(filename, 
       facecolor=self._savefig_facecolor, 
       edgecolor=self._savefig_edgecolor

@@ -35,7 +35,8 @@ class HemispherePlot(RealtimePlot):
     self._zenith = np.linspace(0, np.pi / 2, self._n_zenith)
     # Array of all combinations. 1st row = azimuth, 2nd = zenith
     azi, zen = np.meshgrid(self._azimuth, self._zenith)
-    x = np.sin(zen)*np.cos(azi)
-    y = np.sin(zen)*np.sin(azi)
-    z = np.cos(zen)
+    scale = .992 # So things plotted on hemsiphere are on top of wireframe
+    x = scale * np.sin(zen)*np.cos(azi)
+    y = scale * np.sin(zen)*np.sin(azi)
+    z = scale * np.cos(zen)
     self._wireframe = self._ax.plot_wireframe(x, y, z, color='gray', lw=.2)
