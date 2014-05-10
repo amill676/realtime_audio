@@ -9,10 +9,14 @@ class FilterPlot(RealtimePlot):
   Class for plotting observation distributions and filter estimates
   over time.
   """
-  def __init__(self, n_past_samples, n_estimates=0, *args, **kwargs):
+  def __init__(self, n_space, n_past_samples, n_estimates=0, 
+                distr_cmap='bone', estimate_colors=None, *args, **kwargs):
     RealtimePlot.__init__(self, *args, **kwargs)
+    self._n_space = n_space
     self._n_past_samples = n_past_samples
     self._n_estimates = n_estimates
+    self._distr_cmap = distr_cmap
+    self._estimate_colors = estimate_colors
     self._setup()
 
   def _setup(self):
@@ -23,30 +27,47 @@ class FilterPlot(RealtimePlot):
     self._time_space = np.arange(self._n_past_samples)
     # Holds distribution to be plotted at each time frame in each column
     self._distr_mat = np.zeros((self._n_space, self._n_past_samples))
-
-    # Deal with estimates
-    if self._n_estimates > 0:
-      self._estimate_mat = np.zeros((self._n_estimates, self._n_past_samples))
-      self._estimate_plots = []
-      colors = itertools.cycle(['b', 'r', 'k', 'g'])
-      for i in range(self._n_estimates):
-        self._estimate_plots.append(
-          self._ax.plot(self._time_space, self._estimate_mat.T, color=next(colors), lw=1)[0]
-        )
+    # Setup estimate structures
+    self._setup_estimates()
 
     # Setup actual plot
     # Make ticks on axes invisible
     self._ax.get_xaxis().set_visible(False)
     self._ax.get_yaxis().set_visible(False)
     # Create actual plot
-    self._im_2d = self._ax.imshow(self._distr_mat, vmin=0, vmax=.03, cmap='bone', origin='lower',
-                      extent=[0, self._time_space[-1], 0, np.pi], aspect='auto')
+    self._im_2d = self._ax.imshow(self._distr_mat, vmin=0, vmax=.03, 
+        cmap=self._distr_cmap, origin='lower', 
+        extent=[0, self._time_space[-1], 0, np.pi], aspect='auto')
     # Setup limits
     self._ax.set_ylim(0, np.pi)
     self._ax.set_xlim(0, self._n_past_samples-1)
     # Setup lables
     self._ax.set_xlabel('time')
     self._ax.set_ylabel('DOA')
+ 
+  def _setup_estimates(self):
+    """
+    Setup the matrix for holding previous estimates. Also setup the estimate
+    plot structures
+    """
+    # Deal with estimates
+    if self._n_estimates > 0:
+      self._estimate_mat = np.zeros((self._n_estimates, self._n_past_samples))
+
+      # Deal with estimate colors
+      if self._estimate_colors is not None:
+        if len(self._estimate_colors) != self._n_estimates:
+          print "WARNING: Lenght of provided color list for estimates is " +\
+              "not the same as the number of estimates indicated. Colors " +\
+              "will cycle if not enough provided"
+        colors = itertools.cycle(self._estimate_colors)
+      else:
+        colors = itertools.cycle(['b', 'r', 'k', 'g'])
+      self._estimate_plots = []
+      for i in range(self._n_estimates):
+        self._estimate_plots.append(
+          self._ax.plot(self._time_space, self._estimate_mat.T, color=next(colors), lw=1)[0]
+        )
 
   def update(self, distr, estimates=None):
     self._update_distr(distr)

@@ -408,7 +408,11 @@ def localize():
             pol_beam_plot, = plt.plot(theta, np.ones(theta.shape), 'red')
     if PLOT_2D:
         n_past_samples = 100
-        particle_plot = ParticleFilterPlot(N_THETA, n_past_samples, N_PARTICLES, n_estimates=4, particle_color='r')
+        estimate_colors = ['b', 'r', 'g', 'k'] # Noisy, estimate, class0, class1
+        particle_plot = ParticleFilterPlot(N_PARTICLES, 
+            n_space=N_THETA, n_past_samples=n_past_samples, 
+            n_estimates=4, particle_color='r', distr_cmap='bone',
+            estimate_colors=estimate_colors)
     if VIDEO_OVERLAY:
         fig = plt.figure()
         ax = fig.add_subplot(111)
