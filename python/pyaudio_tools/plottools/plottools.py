@@ -34,7 +34,7 @@ def setup_fullpage_figsize():
 
 def setup_halfpage_figsize():
   setup_figsize(TEXTWIDTH, SUBFIG_SCALE)
-  plt.locator_params(nbins=4)
+  plt.locator_params(nbins=2)
 
 def setup_thirdpage_figsize():
   setup_figsize(TEXTWIDTH, THIRDFIG_SCALE)

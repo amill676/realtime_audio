@@ -41,14 +41,14 @@ THETA_SPACE = np.linspace(0, np.pi, N_THETA)
 N_PHI = 1
 PLOT_POLAR = False
 PLOT_CARTES = False
-PLOT_2D = False
+PLOT_2D = True
 EXTERNAL_PLOT = False
 PLAY_AUDIO = False
 DO_BEAMFORM = False
 RECORD_AUDIO = False
 VIDEO_OVERLAY = False
 SAVE_FRAMES = False
-PLOT_PARTICLES = True
+PLOT_PARTICLES = False
 OUTFILE_NAME = 'nonbeamformed.wav'
 TIMEOUT = 1
 # Source planes and search space
@@ -63,12 +63,12 @@ MIC_FORWARD = np.array([0, 1, 0])
 MIC_ABOVE = np.array([0, 0, 1])
 STATE_KAPPA = 100  
 OUTLIER_PROB = .9
-OBS_KAPPA = 10
-N_PARTICLES = 50
+OBS_KAPPA = 5
+N_PARTICLES = 30
 
 # Setup printing
 np.set_printoptions(precision=4, suppress=True)
-#ptools.setup_halfpage_figsize()
+ptools.setup_fullpage_figsize()
 
 # Setup mics
 mic_layout = np.array([[.03, 0], [-.01, 0], [.01, 0], [-.03, 0]])
@@ -269,7 +269,7 @@ def setup_particle_plot(ax, particle_color, estim_color, offset):
     particle_plots = []
     for i in range(N_PARTICLES):
       particle_plots.append(ax.plot([0], [offset], 'o', mfc='none', mec=particle_color)[0])
-    estimate_plot, = ax.plot([0], [offset], c=estim_color, marker='.', ms=20)
+    estimate_plot, = ax.plot([0], [offset], c=estim_color, marker='.', ms=10)
     ax.set_xlim(0, np.pi)
     ax.set_ylim(0, 1)
     return particle_plots, estimate_plot
@@ -296,13 +296,13 @@ def localize():
     pa = pyaudio.PyAudio()
     helper = AudioHelper(pa)
     listener = CommandListener()
-    plot_manager = PlotManager('vmpf_2d_obskap_25_')
+    plot_manager = PlotManager('vmpf_2d_weightings_')
     localizer = VonMisesTrackingLocalizer(mic_positions=mic_layout,
                                       search_space=space,
                                       n_particles=N_PARTICLES,
                                       state_kappa=STATE_KAPPA,
                                       observation_kappa=OBS_KAPPA,
-                                      outlier_prob=.5,
+                                      outlier_prob=0,
                                       dft_len=FFT_LENGTH,
                                       sample_rate=SAMPLE_RATE,
                                       n_theta=N_THETA,
@@ -312,7 +312,7 @@ def localize():
                                       n_particles=N_PARTICLES,
                                       state_kappa=STATE_KAPPA,
                                       observation_kappa=OBS_KAPPA,
-                                      outlier_prob=.5,
+                                      outlier_prob=.3,
                                       dft_len=FFT_LENGTH,
                                       sample_rate=SAMPLE_RATE,
                                       n_theta=N_THETA,
@@ -322,7 +322,7 @@ def localize():
                                       n_particles=N_PARTICLES,
                                       state_kappa=STATE_KAPPA,
                                       observation_kappa=OBS_KAPPA,
-                                      outlier_prob=.8,
+                                      outlier_prob=.6,
                                       dft_len=FFT_LENGTH,
                                       sample_rate=SAMPLE_RATE,
                                       n_theta=N_THETA,
@@ -373,11 +373,17 @@ def localize():
 
     # Plotting setup
     if PLOT_PARTICLES:
+        ptools.setup_halfpage_figsize()
         fig = plt.figure()
-        ax = fig.add_subplot(111)
-        particle_plots, estimate_plot = setup_particle_plot(ax, 'b', 'r', .2)
-        particle_plots2, estimate_plot2 = setup_particle_plot(ax, 'k', 'r', .5)
-        particle_plots3, estimate_plot3 = setup_particle_plot(ax, 'g', 'r', .8)
+        ax = ptools.get_halfpage_axis(fig)
+        #ax = fig.add_subplot(111)
+        #particle_plots, estimate_plot = setup_particle_plot(ax, 'b', 'r', .4)
+        particle_plots2, estimate_plot2 = setup_particle_plot(ax, 'k', 'r', .3)
+        #particle_plots3, estimate_plot3 = setup_particle_plot(ax, 'g', 'r', .8)
+        spher_coords = localizer.get_spher_directions()
+        theta = spher_coords[1, :]
+        lhood_plot, = ax.plot(theta, np.ones(theta.shape), 'b')
+        ax.set_ylim(0, 1.2)
         plt.show(block=False)
     if PLOT_POLAR:
         fig = plt.figure()
@@ -409,10 +415,22 @@ def localize():
     if PLOT_2D:
         n_past_samples = 100
         estimate_colors = ['b', 'r', 'g', 'k'] # Noisy, estimate, class0, class1
+        noise_color = 'c'
+        color = 'b'
         particle_plot = ParticleFilterPlot(N_PARTICLES, 
             n_space=N_THETA, n_past_samples=n_past_samples, 
-            n_estimates=3, particle_color='r', distr_cmap='bone',
-            estimate_colors=estimate_colors)
+            n_estimates=2, particle_color=color, distr_cmap='bone',
+            estimate_colors=[noise_color, color])
+        color2 = 'm'
+        particle_plot2 = ParticleFilterPlot(N_PARTICLES, 
+            n_space=N_THETA, n_past_samples=n_past_samples, 
+            n_estimates=2, particle_color=color2, distr_cmap='bone',
+            estimate_colors=[noise_color, color2])
+        color3 = 'r'
+        particle_plot3 = ParticleFilterPlot(N_PARTICLES, 
+            n_space=N_THETA, n_past_samples=n_past_samples, 
+            n_estimates=2, particle_color=color3, distr_cmap='bone',
+            estimate_colors=[noise_color, color3])
     if VIDEO_OVERLAY:
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -465,10 +483,15 @@ def localize():
                 # Take care of plotting
                 if count % 1 == 0:
                     if PLOT_PARTICLES:
-                        plot_particles(particle_plots, estimate_plot, ps, w, estimate)
+                        #plot_particles(particle_plots, estimate_plot, ps, w, estimate)
                         plot_particles(particle_plots2, estimate_plot2, ps2, w2, estimate2)
-                        plot_particles(particle_plots3, estimate_plot3, ps3, w3, estimate3)
+                        #plot_particles(particle_plots3, estimate_plot3, ps3, w3, estimate3)
+                        dist = localizer.to_spher_grid(d)
+                        dist /= (np.max(dist) + consts.EPS)
+                        lhood_plot.set_ydata(dist)
                         plt.draw()
+                        if listener.savefig():
+                            plot_manager.savefig(fig)
                         
                     if PLOT_POLAR or PLOT_CARTES:
                         dist = d
@@ -493,15 +516,29 @@ def localize():
                         plt.draw()
                     if PLOT_2D:
                         dist = localizer.to_spher_grid(d)
-                        theta_parts = np.arctan2(ps[:, 1], ps[:, 0])
                         noisy = THETA_SPACE[np.argmax(dist)]
-                        estimate = w.dot(theta_parts)
-                        spike_estimate = joint_w[0, :].dot(theta_parts) /(np.sum(joint_w[0, :]) + consts.EPS)
-                        slab_estimate = joint_w[1, :].dot(theta_parts) / (np.sum(joint_w[1, :]) + consts.EPS)
+                        #estimate 1
+                        theta_parts = np.arctan2(ps[:, 1], ps[:, 0])
+                        estimate = w.dot(ps)
+                        estimate = np.arctan2(estimate[1], estimate[0])
                         particle_plot.update(dist, theta_parts, w, 
-                            [noisy, estimate, spike_estimate])#, slab_estimate])
+                            [noisy, estimate])
+                        #estimate 2
+                        theta_parts2  = np.arctan2(ps2[:, 1], ps2[:, 0])
+                        estimate2 = w2.dot(ps2)
+                        estimate2 = np.arctan2(estimate2[1], estimate2[0])
+                        particle_plot2.update(dist, theta_parts2, w2, 
+                            [noisy, estimate2])
+                        #estimate 3
+                        theta_parts3  = np.arctan2(ps3[:, 1], ps3[:, 0])
+                        estimate3 = w3.dot(ps3)
+                        estimate3 = np.arctan2(estimate3[1], estimate3[0])
+                        particle_plot3.update(dist, theta_parts3, w3, 
+                            [noisy, estimate3])
                         if listener.savefig():
                             plot_manager.savefig(particle_plot.get_figure())
+                            plot_manager.savefig(particle_plot2.get_figure())
+                            plot_manager.savefig(particle_plot3.get_figure())
                     if VIDEO_OVERLAY:
                         _, cvimage = vc.read()
                         overlay_particles(video_handle, vid_part_plots, vid_estim_plot, \

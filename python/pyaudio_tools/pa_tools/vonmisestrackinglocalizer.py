@@ -193,7 +193,6 @@ class VonMisesTrackingLocalizer(TrackingLocalizer):
     total_sum = np.sum(class_weight_sum)
     self._joint_weights /= (total_sum + consts.EPS)
     self._class_weights = class_weight_sum / (total_sum + consts.EPS)
-    print self._class_weights
     self._posterior.normalise_weights()
     self._estimate = self._get_estimate()
 

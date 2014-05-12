@@ -18,7 +18,7 @@ class FilterHemispherePlot(HemispherePlot):
   """
   
   def __init__(self, n_estimates=0, n_past_estimates=1, 
-               plot_lines=None, **kwargs):
+               plot_lines=None, estim_colors=None, **kwargs):
     """
     Have ability to display previous estimates, and how many to keep. Regardless
     of the amount, previous plotted estimates will fade away over time.
@@ -42,7 +42,10 @@ class FilterHemispherePlot(HemispherePlot):
     HemispherePlot.__init__(self, **kwargs)
     self._n_estimates = n_estimates
     self._n_past_estimates = n_past_estimates
-    self._estimate_colors_strings = ['r', 'b', 'g', 'k']
+    if estim_colors is not None:
+      self._estimate_colors_strings = estim_colors
+    else:
+      self._estimate_colors_strings = ['r', 'b', 'g', 'k']
     self._setup_plot_settings(plot_lines)
 
   def _setup_plot_settings(self, plot_lines):

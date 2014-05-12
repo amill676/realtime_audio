@@ -36,7 +36,7 @@ class RealtimePlot(object):
     self._update_figure()
 
   def _update_figure(self):
-    plt.draw()
+    self._figure.canvas.draw()
 
   def _add_frame(self, mat, frame):
     mtools.add_frame(mat, frame)

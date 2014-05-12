@@ -62,9 +62,9 @@ MIC_ABOVE = np.array([0, 0, 1])
 CAM_FORWARD = np.array([0, 1, 0])
 CAM_ABOVE = np.array([0, 0, 1])
 STATE_KAPPA = 100
-OBS_KAPPA = 20
+OBS_KAPPA = 25 
 OUTLIER_PROB = .7 
-N_PARTICLES = 80
+N_PARTICLES = 50
 
 # Setup printing
 np.set_printoptions(precision=4, suppress=True)
@@ -218,13 +218,14 @@ def localize():
     pa = pyaudio.PyAudio()
     helper = AudioHelper(pa)
     listener = CommandListener()
-    plot_manager = PlotManager('3d_vm_kappa_5_energy_')
+    plot_manager = PlotManager('3d_vmf_switching_')
     localizer = VonMisesTrackingLocalizer(mic_positions=mic_layout,
                                       search_space=space,
                                       n_particles=N_PARTICLES,
                                       state_kappa=STATE_KAPPA,
-                                      observation_kappa=OBS_KAPPA,
-                                      outlier_prob=OUTLIER_PROB,
+                                      #observation_kappa=OBS_KAPPA,
+                                      observation_kappa=5,
+                                      outlier_prob=.5,
                                       dft_len=FFT_LENGTH,
                                       sample_rate=SAMPLE_RATE,
                                       n_theta=N_THETA,
@@ -233,8 +234,19 @@ def localize():
                                       search_space=space,
                                       n_particles=N_PARTICLES,
                                       state_kappa=STATE_KAPPA,
-                                      observation_kappa=OBS_KAPPA,
+                                      #observation_kappa=OBS_KAPPA,
+                                      observation_kappa=25,
                                       outlier_prob=0,
+                                      dft_len=FFT_LENGTH,
+                                      sample_rate=SAMPLE_RATE,
+                                      n_theta=N_THETA,
+                                      n_phi=N_PHI)
+    localizer3 = VonMisesTrackingLocalizer(mic_positions=mic_layout,
+                                      search_space=space,
+                                      n_particles=N_PARTICLES,
+                                      state_kappa=STATE_KAPPA,
+                                      observation_kappa=OBS_KAPPA,
+                                      outlier_prob=.6,
                                       dft_len=FFT_LENGTH,
                                       sample_rate=SAMPLE_RATE,
                                       n_theta=N_THETA,
@@ -285,9 +297,19 @@ def localize():
 
     # Plotting setup
     if PLOT_PARTICLES:
+        ml_color = 'r'
+        color = 'b';
         particle_plot = ParticleHemispherePlot(
-            N_PARTICLES, 'b', n_estimates=3, n_past_estimates=100, 
-            plot_lines=[False, True, True], elev=60, azim=45)
+            N_PARTICLES, color, n_estimates=2, n_past_estimates=100, 
+            plot_lines=[False, True], elev=60, azim=45, estim_colors=[ml_color, color])
+        #color = 'b'
+        #particle_plot2 = ParticleHemispherePlot(
+        #    N_PARTICLES, color, n_estimates=2, n_past_estimates=100, 
+        #    plot_lines=[False, True], elev=60, azim=45, estim_colors=[ml_color, color])
+        #color = 'r'
+        #particle_plot3 = ParticleHemispherePlot(
+        #    N_PARTICLES, color, n_estimates=2, n_past_estimates=100, 
+        #    plot_lines=[False, True], elev=60, azim=45, estim_colors=[ml_color, color])
     if PLOT_POLAR:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='polar')
@@ -340,14 +362,14 @@ def localize():
                 #    continue
                 post = localizer.get_distribution(rffts[:, :, 0]) # PyBayes EmpPdf
                 post2 = localizer2.get_distribution(rffts[:, :, 0])
+                post3 = localizer3.get_distribution(rffts[:, :, 0])
                 # Get estimate from particles
                 w = np.asarray(post.weights)
-                joint_w = localizer.get_joint_weights()
-                class_weights = localizer.get_class_weights()
-                #print joint_w[0, :]
                 ps = np.asarray(post.particles)
                 w2 = np.asarray(post2.weights)
                 ps2 = np.asarray(post2.particles)
+                w3 = np.asarray(post3.weights)
+                ps3 = np.asarray(post3.particles)
                 #estimate2 = w2.dot(ps2)
                 if DO_TRACK and count % TRACKING_FREQ == 0:
                     #v = np.array([1, 0, 1])
@@ -372,13 +394,17 @@ def localize():
                     if PLOT_PARTICLES:
                       estimate = w.dot(ps)
                       estimate /= (mat.norm2(estimate) + consts.EPS)
-                      if class_weights[0] > .8:
-                        estimate2 = joint_w[1, :].dot(ps)
-                        estimate2 /= (mat.norm2(estimate2) + consts.EPS)
-                        #estimate2 = w2.dot(ps2)
-                      particle_plot.update(ps, joint_w[0, :], [ml_est, estimate2, estimate])
+                      particle_plot.update(ps, w, [ml_est, estimate])
+                      #estimate2 = w2.dot(ps2)
+                      #estimate2 /= (mat.norm2(estimate2) + consts.EPS)
+                      #particle_plot2.update(ps2, w2, [ml_est, estimate2])
+                      #estimate3 = w3.dot(ps3)
+                      #estimate3 /= (mat.norm2(estimate3) + consts.EPS)
+                      #particle_plot3.update(ps3, w3, [ml_est, estimate3])
                       if listener.savefig():
                         plot_manager.savefig(particle_plot.get_figure())
+                        #plot_manager.savefig(particle_plot2.get_figure())
+                        #plot_manager.savefig(particle_plot3.get_figure())
                     if PLOT_CARTES:
                         ax.cla()
                         ax.grid(False)
