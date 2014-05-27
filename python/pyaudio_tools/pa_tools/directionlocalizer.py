@@ -11,13 +11,13 @@ import constants as consts
 
 class DirectionLocalizer(AudioLocalizer):
 
-    def __init__(self, mic_layout, sample_rate=44100, shift_n=31, shift_max=15):
+    def __init__(self, mic_positions, shift_n=31, shift_max=15, *args, **kwargs):
         """
-         :param mic_layout: locations of microphones. Each row should be the
+         :param mic_positions: locations of microphones. Each row should be the
                              location of a given microphone. The dimension
                              is taken to be the number of columns of this
                              matrix
-         :type mic_layout: numpy array
+         :type mic_positions: numpy array
          :param sample_rate: Sample rate that was used when sampling data
          :type sample_rate: int
          :param shift_n: Number of points to break shift range into
@@ -25,9 +25,9 @@ class DirectionLocalizer(AudioLocalizer):
          :param shift_max: Will search for shifts in range -shift_max to shift_max
          :type shift_max: int
          """
-        AudioLocalizer.__init__(self, mic_layout, sample_rate=sample_rate)
-        if mic_layout is not None:
-            self._mic_layout = mic_layout.copy()
+        AudioLocalizer.__init__(self, *args, **kwargs)
+        if mic_positions is not None:
+            self._mic_positions = mic_positions.copy()
             self._setup_distances()
         self._shift_n = shift_n + (1 - (shift_n % 2))  # Use odd number so zero shift possible
         self._shift_max = shift_max
@@ -102,8 +102,8 @@ class DirectionLocalizer(AudioLocalizer):
         """
         self._use_angle = False  # Whether to use angular approach instead of
         #   least squares
-        self._n_mics = self._mic_layout.shape[0]
-        self._n_dimensions = self._mic_layout.shape[1]
+        self._n_mics = self._mic_positions.shape[0]
+        self._n_dimensions = self._mic_positions.shape[1]
         if self._n_mics < self._n_dimensions + 1:
             print >> sys.stderr, "WARNING: Should have at least 1 more mic " \
                                  "than number of dimensions in search space"
@@ -111,5 +111,5 @@ class DirectionLocalizer(AudioLocalizer):
             self._use_angle = True
         if self._n_mics < self._n_dimensions:
             raise ValueError("Must have at least as many mics as dimensions")
-            #print "mic layout: " + str(self._mic_layout)
-        self._distances = self._mic_layout[1:, :] - self._mic_layout[0, :]
+            #print "mic layout: " + str(self._mic_positions)
+        self._distances = self._mic_positions[1:, :] - self._mic_positions[0, :]

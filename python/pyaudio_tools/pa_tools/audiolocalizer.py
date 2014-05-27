@@ -13,16 +13,11 @@ class AudioLocalizer:
     CUTOFF_FREQ = 4000  # in Hz
     N_ANGLES = 60
 
-    def __init__(self, mic_layout, dft_len=512, sample_rate=44100):
+    def __init__(self, dft_len=512, sample_rate=44100):
         """
-        @type mic_layout: numpy array
-        @param mic_layout: a numpy array with each row containing the location
-                            of the corresponding microphone. The number of columns
-                            of this array will represent the number of dimensions
-                            in which the source should be represented. Note that
-                            the order of the microphones in this array should
-                            correspond with the ordering of the input channel
-                            associated with them
+        :param dft_len: Length of the DFT to use. Default is 512.
+        :param sample_rate: Sample rate that was used when sampling data. 
+                            Default value is 44100 Hz.
         """
         self._sample_rate = float(sample_rate)
         self._dft_len = dft_len

@@ -9,15 +9,13 @@ import sys
 
 class DistributionLocalizer(AudioLocalizer):
 
-    def __init__(self, mic_positions, dft_len=512, sample_rate=44100, n_theta=20, n_phi=1):
+    def __init__(self, mic_positions, n_theta=20, n_phi=1, *args, **kwargs):
         """
         :param mic_positions: locations of microphones. Each row should be the
                             location of a given microphone. The dimension
                             is taken to be the number of columns of this
                             matrix
         :type mic_positions: numpy array
-        :param sample_rate: Sample rate that was used when sampling data
-        :type sample_rate: int
         :param n_theta: The number of points to sample in theta search
                         space where theta is angle in spherical coordinates
         :type n_theta: int
@@ -26,7 +24,7 @@ class DistributionLocalizer(AudioLocalizer):
                       default value is 1, which indicates a 2d search space
         :type n_phi: int
         """
-        AudioLocalizer.__init__(self, mic_positions, dft_len=dft_len, sample_rate=sample_rate)
+        AudioLocalizer.__init__(self, *args, **kwargs)
         self._n_theta = n_theta
         self._n_phi = n_phi
         if mic_positions is not None:

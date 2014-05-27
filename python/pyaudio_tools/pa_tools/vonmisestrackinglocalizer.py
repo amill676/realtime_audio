@@ -14,9 +14,8 @@ from pybayes import EmpPdf
 
 class VonMisesTrackingLocalizer(TrackingLocalizer):
 
-  def __init__(self, mic_positions, search_space, n_particles,
-               state_kappa, observation_kappa, outlier_prob=0, 
-               dft_len=512, sample_rate=44100, n_theta=20, n_phi=1):
+  def __init__(self, n_particles, state_kappa, observation_kappa, outlier_prob=0, 
+               *args, **kwargs):
     """
     Localizes source using Von Mises particle filter
           x_t ~ VM(x_{t-1}, kappa_v)
@@ -30,18 +29,19 @@ class VonMisesTrackingLocalizer(TrackingLocalizer):
                          background uniform outlier von mises distribution. If
                          this is omitted, it will be set to 0, and the normal
                          particle filtering algorithm will be used
-
+    
+    All other parameters will be passed to TrackingLocalizer in the form of *args
+    and **kwargs
     """
-    TrackingLocalizer.__init__(self, mic_positions, search_space, dft_len, 
-                               sample_rate, n_theta, n_phi)
+    TrackingLocalizer.__init__(self, *args, **kwargs)
     self._grid_size = self._n_theta * self._n_phi
-    self._process_search_space(search_space)
+    #self._process_search_space(search_space)
     self._setup_particle_filters(n_particles, state_kappa, observation_kappa, outlier_prob)
 
-  def _process_search_space(self, search_space):
-    self._search_space = search_space
-    self._planes = self._search_space.get_planes()
-    self._tracking_plane = self._planes[0]
+  #def _process_search_space(self, search_space):
+  #  self._search_space = search_space
+  #  self._planes = self._search_space.get_planes()
+  #  self._tracking_plane = self._planes[0]
 
   def get_distribution(self, rffts):
     d, energy = self.get_distribution_real(rffts, 'gcc')
