@@ -356,6 +356,7 @@ class DistributionLocalizer(AudioLocalizer):
         shift_mats = self._get_shifts_from_delays(delays, cutoff_index)
         srp = self._get_distribution_beam(rffts, shift_mats)
         srp /= (np.sum(srp) + consts.EPS) # Normalize
+        srp = srp ** 3
         return srp
 
     def _compute_cutoff_index(self):
