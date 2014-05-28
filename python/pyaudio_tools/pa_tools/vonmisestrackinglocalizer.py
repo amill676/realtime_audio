@@ -77,7 +77,6 @@ class VonMisesTrackingLocalizer(TrackingLocalizer):
     init_kappa = .5 # Really small so is almost uniform
     init_mu = np.ones((ndim,))
 
-
     # Create distributions
     self._state_distribution = \
       VonMisesCPdf(self._state_kappa, self._x_t, self._x_t_1)
@@ -144,14 +143,11 @@ class VonMisesTrackingLocalizer(TrackingLocalizer):
         self._state_distribution.sample(self._posterior.particles[i])
     # Get SRP likelihood
     particles_3d = self._to_3d_particles(self._posterior.particles).T
+    # Get likelihoods
     srp = self._get_srp_likelihood(rffts, particles_3d)
     srp -= np.min(srp)
     srp /= (np.sum(srp) + consts.EPS)
     self._posterior.weights *= srp
-    #for i in range(self._posterior.particles.shape[0]):
-    #  # recompute ith weight:
-    #  self._posterior.weights[i] *= \
-    #    np.exp(self._obs_distribution.eval_log(yt, self._posterior.particles[i]))
     # assure that weights are normalised
     self._posterior.normalise_weights()
     return True
