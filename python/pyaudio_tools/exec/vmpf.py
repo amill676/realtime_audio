@@ -132,7 +132,7 @@ def process_dft_buf(buf):
     for i in range(len(buf)):
         if i > FFT_LENGTH / 16:
             buf[i] = 0
-    pass
+
 
 def print_dfts(dfts):
     print "Printing DFTS:"

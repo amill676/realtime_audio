@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 from pa_tools.audiohelper import AudioHelper
 from pa_tools.audiobuffer import AudioBuffer
 from pa_tools.stftmanager import StftManager
-from dft_conversion import *
 
 
 # Setup constants

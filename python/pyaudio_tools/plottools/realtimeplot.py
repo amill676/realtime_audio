@@ -8,8 +8,9 @@ class RealtimePlot(object):
   """
   Class for plotting with realtime updates
   """
-  def __init__(self, title=''):
+  def __init__(self, title='', projection=None):
     self._title = title
+    self._setup_figure(projection)
 
   def get_figure(self):
     """
@@ -24,6 +25,9 @@ class RealtimePlot(object):
     return self._ax
 
   def _setup_figure(self, projection=None):
+    """
+    Setup this object's underlying figure. If a projection is given, use it.
+    """
     self._figure = plt.figure()
     if projection is None:
       self._ax = self._figure.add_subplot(111)

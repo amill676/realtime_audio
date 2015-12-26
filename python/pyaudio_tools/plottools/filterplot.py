@@ -11,6 +11,16 @@ class FilterPlot(RealtimePlot):
   """
   def __init__(self, n_space, n_past_samples, n_estimates=0, 
                 distr_cmap='bone', estimate_colors=None, *args, **kwargs):
+    """
+    :param n_space: number of samples in the state space discretization
+    :param n_past_samples: number of past frames in time to maintain in plot
+    :param n_estimates: number of estimates to plot. defaults to 0
+    :param distr_cmap: color map for the likelihood distribution
+    :param estimate_colors: colors for the different estimates. In the form of
+                            matplotlib color formats
+
+    All other parameters will be passed to RealtimePlot constructor
+    """
     RealtimePlot.__init__(self, *args, **kwargs)
     self._n_space = n_space
     self._n_past_samples = n_past_samples
@@ -20,9 +30,6 @@ class FilterPlot(RealtimePlot):
     self._setup()
 
   def _setup(self):
-    # Setup figure
-    self._setup_figure()
-
     # Setup structures first
     self._time_space = np.arange(self._n_past_samples)
     # Holds distribution to be plotted at each time frame in each column

@@ -14,13 +14,12 @@ class HemispherePlot(RealtimePlot):
   All other keyword arguments are passed to RealtimePlot
   """
   def __init__(self, elev=None, azim=None, **kwargs):
-    RealtimePlot.__init__(self, **kwargs)
+    RealtimePlot.__init__(self, projection='3d', **kwargs)
     self._elev_ang = elev
     self._azim_ang = azim
-    self._setup_figure()
+    self._setup_axis()
 
-  def _setup_figure(self):
-    RealtimePlot._setup_figure(self, projection='3d')
+  def _setup_axis(self):
     self._plot_limit = 1.2
     self._ax.set_xlim(-self._plot_limit, self._plot_limit)
     self._ax.set_ylim(-self._plot_limit, self._plot_limit)
